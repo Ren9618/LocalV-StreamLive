@@ -65,5 +65,9 @@ npm run dev
 ## 📜 授權條款
 本專案採用 [MIT 授權條款](LICENSE) 授權。
 
+**鳴謝 (Credits):**
+*   本應用程式使用了 **VOICEVOX** 進行語音合成。
+*   在直播或製作影片使用時，請務必標註版權資訊，例如 "**VOICEVOX:(角色名稱)**"。詳細資訊請參考 [VOICEVOX 使用條款](https://voicevox.hiroshiba.jp/term/)。
+
 **免責聲明:**  
 本軟體使用了生成式 AI。我們對 AI 生成的輸出內容不承擔任何責任。在使用外部工具（如 VOICEVOX）時，請務必遵守其相應的服務條款。

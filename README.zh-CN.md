@@ -65,5 +65,9 @@ npm run dev
 ## 📜 许可证
 本项目采用 [MIT 许可证](LICENSE) 授权。
 
+**鸣谢 (Credits):**
+*   本应用程序使用了 **VOICEVOX** 进行语音合成。
+*   在直播或制作视频使用时，请务必标注版权信息，例如 "**VOICEVOX:(角色名)**"。详细信息请参考 [VOICEVOX 使用条款](https://voicevox.hiroshiba.jp/term/)。
+
 **免责声明:**  
 本软件使用了生成式 AI。我们对 AI 生成的输出内容不承担任何责任。在使用外部工具（如 VOICEVOX）时，请务必遵守其相应的服务条款。
