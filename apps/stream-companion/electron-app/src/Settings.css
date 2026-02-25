@@ -187,3 +187,71 @@
   color: #666;
   font-size: 0.9rem;
 }
+
+/* === プリセットツールバー === */
+.preset-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.preset-select {
+  flex: 1;
+  min-width: 120px;
+  padding: 6px 10px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #ddd;
+  font-size: 0.85rem;
+}
+
+.preset-btn {
+  padding: 5px 10px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.preset-btn:hover {
+  background: #3a3a3a;
+  border-color: #666;
+}
+
+.preset-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.preset-btn-danger {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.3);
+}
+
+.preset-btn-danger:hover {
+  background: rgba(255, 107, 107, 0.15);
+  border-color: #ff6b6b;
+}
+
+.preset-save-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.preset-name-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: #2a2a2a;
+  border: 1px solid #00ff88;
+  border-radius: 6px;
+  color: #ddd;
+  font-size: 0.85rem;
+}

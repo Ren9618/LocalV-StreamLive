@@ -22,6 +22,13 @@ declare global {
       onWarmupStatus: (callback: (status: string) => void) => void;
       getFilters: () => Promise<any>;
       saveFilters: (filters: any) => Promise<boolean>;
+      // プリセット管理
+      getPresets: () => Promise<{ name: string, path: string }[]>;
+      savePreset: (name: string, text: string) => Promise<{ name: string, path: string }>;
+      deletePreset: (name: string) => Promise<boolean>;
+      loadPreset: (name: string) => Promise<string | null>;
+      exportPrompt: (text: string, defaultName: string) => Promise<boolean>;
+      importPrompt: () => Promise<{ name: string, text: string } | null>;
     }
   }
 }

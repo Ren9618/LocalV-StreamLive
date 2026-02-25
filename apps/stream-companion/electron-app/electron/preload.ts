@@ -75,6 +75,37 @@ try {
     saveFilters: (filters: any) => {
       return ipcRenderer.invoke('save-filters', filters);
     },
+
+    // === プリセット管理 ===
+    // プリセット一覧を取得
+    getPresets: () => {
+      return ipcRenderer.invoke('get-presets');
+    },
+
+    // プリセットを保存
+    savePreset: (name: string, text: string) => {
+      return ipcRenderer.invoke('save-preset', name, text);
+    },
+
+    // プリセットを削除
+    deletePreset: (name: string) => {
+      return ipcRenderer.invoke('delete-preset', name);
+    },
+
+    // プリセットを読み込み
+    loadPreset: (name: string) => {
+      return ipcRenderer.invoke('load-preset', name);
+    },
+
+    // プロンプトをエクスポート
+    exportPrompt: (text: string, defaultName: string) => {
+      return ipcRenderer.invoke('export-prompt', text, defaultName);
+    },
+
+    // プロンプトをインポート
+    importPrompt: () => {
+      return ipcRenderer.invoke('import-prompt');
+    },
   });
   console.log('✅ contextBridge exposed');
 } catch (error) {

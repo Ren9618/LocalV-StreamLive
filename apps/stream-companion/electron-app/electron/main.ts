@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -545,4 +545,75 @@ ipcMain.handle('clear-logs', async () => {
   logs = [];
   logIdCounter = 0;
   return true;
+});
+
+// === IPC: プリセット管理 ===
+const presetsDir = path.join(app.getPath('userData'), 'presets');
+// presetsディレクトリが無ければ作成
+if (!fs.existsSync(presetsDir)) {
+  fs.mkdirSync(presetsDir, { recursive: true });
+}
+
+// プリセット一覧を取得
+ipcMain.handle('get-presets', async () => {
+  const files = fs.readdirSync(presetsDir).filter(f => f.endsWith('.lvsp'));
+  return files.map(f => ({
+    name: path.basename(f, '.lvsp'),
+    path: path.join(presetsDir, f),
+  }));
+});
+
+// プリセットを保存（名前とテキストを受け取り .lvsp ファイルとして保存）
+ipcMain.handle('save-preset', async (_event, name: string, text: string) => {
+  const safeName = name.replace(/[<>:"/\\|?*]/g, '_'); // ファイル名に使えない文字を置換
+  const filePath = path.join(presetsDir, `${safeName}.lvsp`);
+  fs.writeFileSync(filePath, text, 'utf-8');
+  return { name: safeName, path: filePath };
+});
+
+// プリセットを削除
+ipcMain.handle('delete-preset', async (_event, name: string) => {
+  const filePath = path.join(presetsDir, `${name}.lvsp`);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+  return true;
+});
+
+// プリセットを読み込み（名前を指定してテキストを返す）
+ipcMain.handle('load-preset', async (_event, name: string) => {
+  const filePath = path.join(presetsDir, `${name}.lvsp`);
+  if (!fs.existsSync(filePath)) return null;
+  return fs.readFileSync(filePath, 'utf-8');
+});
+
+// エクスポート（ファイル保存ダイアログ）
+ipcMain.handle('export-prompt', async (_event, text: string, defaultName: string) => {
+  const result = await dialog.showSaveDialog({
+    title: 'プロンプトをエクスポート',
+    defaultPath: `${defaultName || 'prompt'}.lvsp`,
+    filters: [
+      { name: 'LocalV Prompt', extensions: ['lvsp'] },
+      { name: 'テキストファイル', extensions: ['txt'] },
+    ],
+  });
+  if (result.canceled || !result.filePath) return false;
+  fs.writeFileSync(result.filePath, text, 'utf-8');
+  return true;
+});
+
+// インポート（ファイル選択ダイアログ）
+ipcMain.handle('import-prompt', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'プロンプトをインポート',
+    filters: [
+      { name: 'プロンプトファイル', extensions: ['lvsp', 'txt'] },
+      { name: 'すべてのファイル', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const text = fs.readFileSync(result.filePaths[0], 'utf-8');
+  const name = path.basename(result.filePaths[0], path.extname(result.filePaths[0]));
+  return { name, text };
 });

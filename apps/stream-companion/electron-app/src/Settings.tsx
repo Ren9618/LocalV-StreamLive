@@ -45,12 +45,19 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
     const [saving, setSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
     const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+    // プリセット管理用ステート
+    const [presets, setPresets] = useState<{ name: string, path: string }[]>([]);
+    const [selectedPreset, setSelectedPreset] = useState('');
+    const [presetNameInput, setPresetNameInput] = useState('');
+    const [showPresetSave, setShowPresetSave] = useState(false);
 
     // 初回読み込み
     useEffect(() => {
         window.electron.getSettings().then((s: AppSettings) => {
             setSettings(s);
         });
+        // プリセット一覧も取得
+        refreshPresets();
     }, []);
 
     // オーディオデバイス取得
@@ -67,6 +74,64 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
         navigator.mediaDevices.addEventListener('devicechange', getDevices);
         return () => navigator.mediaDevices.removeEventListener('devicechange', getDevices);
     }, []);
+
+    // プリセット一覧を再取得
+    const refreshPresets = async () => {
+        const list = await window.electron.getPresets();
+        setPresets(list);
+    };
+
+    // プリセットを読み込んでシステムプロンプトに適用
+    const handleLoadPreset = async (name: string) => {
+        if (!name || !settings) return;
+        const text = await window.electron.loadPreset(name);
+        if (text !== null) {
+            handleChange('systemPrompt', text);
+            setSelectedPreset(name);
+        }
+    };
+
+    // 現在のプロンプトをプリセットとして保存
+    const handleSavePreset = async () => {
+        if (!presetNameInput.trim() || !settings) return;
+        await window.electron.savePreset(presetNameInput.trim(), settings.systemPrompt);
+        setShowPresetSave(false);
+        setPresetNameInput('');
+        setSelectedPreset(presetNameInput.trim());
+        await refreshPresets();
+        setSaveMessage('💾 プリセット「' + presetNameInput.trim() + '」を保存しました');
+        setTimeout(() => setSaveMessage(''), 3000);
+    };
+
+    // プリセットを削除
+    const handleDeletePreset = async () => {
+        if (!selectedPreset) return;
+        if (!confirm(`プリセット「${selectedPreset}」を削除しますか？`)) return;
+        await window.electron.deletePreset(selectedPreset);
+        setSelectedPreset('');
+        await refreshPresets();
+    };
+
+    // インポート
+    const handleImportPrompt = async () => {
+        const result = await window.electron.importPrompt();
+        if (result && settings) {
+            handleChange('systemPrompt', result.text);
+            setSaveMessage('📥 「' + result.name + '」からインポートしました');
+            setTimeout(() => setSaveMessage(''), 3000);
+        }
+    };
+
+    // エクスポート
+    const handleExportPrompt = async () => {
+        if (!settings) return;
+        const defaultName = selectedPreset || 'prompt';
+        const ok = await window.electron.exportPrompt(settings.systemPrompt, defaultName);
+        if (ok) {
+            setSaveMessage('📤 エクスポートしました');
+            setTimeout(() => setSaveMessage(''), 3000);
+        }
+    };
 
     // 設定変更ハンドラ (手動保存)
     const handleChange = (key: keyof AppSettings, value: string | number) => {
@@ -229,6 +294,42 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
 
                     <div className="settings-field">
                         <label>システムプロンプト</label>
+
+                        {/* プリセット操作エリア */}
+                        <div className="preset-toolbar">
+                            <select
+                                className="preset-select"
+                                value={selectedPreset}
+                                onChange={(e) => handleLoadPreset(e.target.value)}
+                            >
+                                <option value="">— プリセットを選択 —</option>
+                                {presets.map(p => (
+                                    <option key={p.name} value={p.name}>{p.name}</option>
+                                ))}
+                            </select>
+                            <button className="preset-btn" onClick={() => setShowPresetSave(!showPresetSave)} title="名前を付けて保存">💾 保存</button>
+                            <button className="preset-btn" onClick={handleImportPrompt} title="ファイルから読み込み">📥 インポート</button>
+                            <button className="preset-btn" onClick={handleExportPrompt} title="ファイルに書き出し">📤 エクスポート</button>
+                            {selectedPreset && (
+                                <button className="preset-btn preset-btn-danger" onClick={handleDeletePreset} title="選択中のプリセットを削除">🗑</button>
+                            )}
+                        </div>
+
+                        {/* プリセット名入力（保存ボタン押下時のみ表示） */}
+                        {showPresetSave && (
+                            <div className="preset-save-row">
+                                <input
+                                    type="text"
+                                    className="preset-name-input"
+                                    placeholder="プリセット名を入力..."
+                                    value={presetNameInput}
+                                    onChange={(e) => setPresetNameInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSavePreset(); }}
+                                />
+                                <button className="preset-btn" onClick={handleSavePreset} disabled={!presetNameInput.trim()}>✅ 確定</button>
+                            </div>
+                        )}
+
                         <textarea
                             value={settings.systemPrompt}
                             onChange={(e) => handleChange('systemPrompt', e.target.value)}
