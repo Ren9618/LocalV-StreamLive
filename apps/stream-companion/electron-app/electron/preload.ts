@@ -5,9 +5,9 @@ console.log('✅ Preload script loaded');
 try {
   contextBridge.exposeInMainWorld('electron', {
     // コメント送信（スパチャフラグ対応）
-    sendComment: (text: string, isSuperChat: boolean = false) => {
-      console.log(`📤 Sending comment via IPC: ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
-      return ipcRenderer.invoke('send-comment', text, isSuperChat);
+    sendComment: (text: string, isSuperChat: boolean = false, username: string = 'Guest') => {
+      console.log(`📤 Sending comment via IPC: [${username}] ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
+      return ipcRenderer.invoke('send-comment', text, isSuperChat, username);
     },
 
     // 設定の取得

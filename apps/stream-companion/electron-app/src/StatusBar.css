@@ -59,6 +59,26 @@
     background: rgba(255, 165, 0, 0.25);
 }
 
+/* === 寄付リンク === */
+.donate-link {
+    margin-left: auto;
+    padding: 4px 12px;
+    background: rgba(255, 221, 51, 0.1);
+    border: 1px solid rgba(255, 221, 51, 0.25);
+    border-radius: 6px;
+    color: #ffdd33;
+    font-size: 0.75rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+}
+
+.donate-link:hover {
+    background: rgba(255, 221, 51, 0.2);
+    transform: translateY(-1px);
+}
+
 /* === ガイドモーダル === */
 .guide-overlay {
     position: fixed;

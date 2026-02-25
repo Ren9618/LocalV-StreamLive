@@ -101,7 +101,9 @@
 /* === タブ内容 === */
 .tab-content {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 16px 20px;
 }
 
@@ -120,12 +122,12 @@
 .chat-area {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   border: 1px solid #333;
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 12px;
   background-color: #1a1a1a;
-  min-height: 300px;
 }
 
 .chat-empty {

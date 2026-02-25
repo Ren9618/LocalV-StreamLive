@@ -1,18 +1,33 @@
 {
-  "name": "electron-app",
+  "name": "local-v-streamlive-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.localv.streamlive",
+    "productName": "LocalV-StreamLive",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
   },
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "undici": "^7.22.0"
   },
   "devDependencies": {

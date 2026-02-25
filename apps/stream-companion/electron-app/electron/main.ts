@@ -1,11 +1,13 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { LocalAiBrain } from './core/brain';
+import { createBrain, type AiBrainProvider } from './core/brain';
 import { VoiceVoxClient } from './core/voice';
 import { SettingsStore } from './core/settings-store';
 import { HealthChecker } from './core/health-checker';
 import { CommentFilter } from './core/comment-filter';
+import { ConversationMemory } from './core/conversation-memory';
+import { ViewerMemory } from './core/viewer-memory';
 
 // __dirname の代替
 const __filename = fileURLToPath(import.meta.url);
@@ -16,14 +18,31 @@ const settingsStore = new SettingsStore();
 let currentSettings = settingsStore.getAll();
 
 // === サービスインスタンス ===
-let brain = new LocalAiBrain(currentSettings.aiModel, currentSettings.ollamaUrl);
+let brain: AiBrainProvider = createBrain(
+  currentSettings.aiProvider,
+  currentSettings.aiModel,
+  currentSettings.ollamaUrl,
+  currentSettings.openaiCompatUrl,
+  currentSettings.openaiCompatApiKey
+);
 let voice = new VoiceVoxClient(currentSettings.voicevoxUrl, currentSettings.speakerId);
-const healthChecker = new HealthChecker(currentSettings.ollamaUrl, currentSettings.voicevoxUrl);
+const healthChecker = new HealthChecker(
+  currentSettings.ollamaUrl,
+  currentSettings.voicevoxUrl,
+  currentSettings.aiProvider,
+  currentSettings.openaiCompatUrl,
+  currentSettings.openaiCompatApiKey
+);
 let commentFilter = new CommentFilter(
   currentSettings.blacklist,
   currentSettings.quickReplies,
-  currentSettings.superChatReplies
+  currentSettings.superChatReplies,
+  currentSettings.trigger
 );
+// 短期記憶（会話履歴バッファ）
+const conversationMemory = new ConversationMemory(currentSettings.memorySize);
+// 視聴者記憶（SQLite）
+const viewerMemory = new ViewerMemory();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -116,8 +135,8 @@ app.on('window-all-closed', () => {
 });
 
 // === IPC: コメント送信（フィルター統合済み） ===
-ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean = false) => {
-  console.log(`[IPC] Received comment: ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
+ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean = false, username: string = 'Guest') => {
+  console.log(`[IPC] Received comment from [${username}]: ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
   const startTime = Date.now();
 
   // フィルターで判定
@@ -129,7 +148,7 @@ ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean
     pushLogEntry({
       id: ++logIdCounter,
       timestamp: new Date().toISOString(),
-      userComment: text,
+      userComment: `[${username}] ${text}`,
       aiReply: `[無視] ${filterResult.filterType}`,
       source: 'filter',
       processingMs: Date.now() - startTime,
@@ -152,7 +171,7 @@ ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean
     pushLogEntry({
       id: ++logIdCounter,
       timestamp: new Date().toISOString(),
-      userComment: text,
+      userComment: `[${username}] ${text}`,
       aiReply: reply,
       source: 'filter',
       processingMs,
@@ -161,14 +180,25 @@ ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean
     return { reply, audioData, filtered: true, filterType: filterResult.filterType };
   }
 
-  // AIに処理させる
+  // AIに処理させる（トリガー除去済みテキストを使用）
+  const aiText = filterResult.cleanedText || text;
   try {
-    const reply = await brain.chat([
-      { role: 'system', content: currentSettings.systemPrompt },
-      { role: 'user', content: text }
-    ]);
+    // 視聴者のコンテキストを取得してシステムプロンプトに結合
+    await viewerMemory.recordComment(username);
+    const viewerContext = await viewerMemory.getContextPrompt(username);
+
+    const augmentedSystemPrompt = viewerContext
+      ? `${currentSettings.systemPrompt}\n\n${viewerContext}`
+      : currentSettings.systemPrompt;
+
+    // 短期記憶を含めたメッセージを構築
+    const messages = conversationMemory.buildMessages(augmentedSystemPrompt, aiText);
+    const reply = await brain.chat(messages);
     console.log(`[IPC] Bot Reply: ${reply}`);
     const processingMs = Date.now() - startTime;
+
+    // 会話履歴に追加
+    conversationMemory.addExchange(aiText, reply);
 
     const audioBuffer = await voice.generateAudio(reply);
     let audioData = null;
@@ -179,7 +209,7 @@ ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean
     pushLogEntry({
       id: ++logIdCounter,
       timestamp: new Date().toISOString(),
-      userComment: text,
+      userComment: `[${username}] ${text}`,
       aiReply: reply,
       source: 'ai',
       processingMs,
@@ -193,7 +223,7 @@ ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean
     pushLogEntry({
       id: ++logIdCounter,
       timestamp: new Date().toISOString(),
-      userComment: text,
+      userComment: `[${username}] ${text}`,
       aiReply: `エラー: ${error}`,
       source: 'error',
       processingMs,
@@ -209,15 +239,31 @@ ipcMain.handle('get-default-settings', async () => settingsStore.getDefaults());
 
 ipcMain.handle('save-settings', async (_event, newSettings: any) => {
   currentSettings = settingsStore.save(newSettings);
-  brain = new LocalAiBrain(currentSettings.aiModel, currentSettings.ollamaUrl);
+  // プロバイダーに応じたブレインを再生成
+  brain = createBrain(
+    currentSettings.aiProvider,
+    currentSettings.aiModel,
+    currentSettings.ollamaUrl,
+    currentSettings.openaiCompatUrl,
+    currentSettings.openaiCompatApiKey
+  );
   voice = new VoiceVoxClient(currentSettings.voicevoxUrl, currentSettings.speakerId);
-  healthChecker.updateUrls(currentSettings.ollamaUrl, currentSettings.voicevoxUrl);
+  healthChecker.updateUrls(
+    currentSettings.ollamaUrl,
+    currentSettings.voicevoxUrl,
+    currentSettings.aiProvider,
+    currentSettings.openaiCompatUrl,
+    currentSettings.openaiCompatApiKey
+  );
   // フィルターも更新
   commentFilter.update(
     currentSettings.blacklist,
     currentSettings.quickReplies,
-    currentSettings.superChatReplies
+    currentSettings.superChatReplies,
+    currentSettings.trigger
   );
+  // 短期記憶のサイズを更新
+  conversationMemory.setMaxPairs(currentSettings.memorySize);
 
   const health = await healthChecker.checkAll();
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -232,6 +278,7 @@ ipcMain.handle('get-filters', async () => {
     blacklist: currentSettings.blacklist,
     quickReplies: currentSettings.quickReplies,
     superChatReplies: currentSettings.superChatReplies,
+    trigger: currentSettings.trigger,
   };
 });
 
@@ -240,11 +287,13 @@ ipcMain.handle('save-filters', async (_event, filters: any) => {
     blacklist: filters.blacklist,
     quickReplies: filters.quickReplies,
     superChatReplies: filters.superChatReplies,
+    trigger: filters.trigger,
   });
   commentFilter.update(
     currentSettings.blacklist,
     currentSettings.quickReplies,
-    currentSettings.superChatReplies
+    currentSettings.superChatReplies,
+    currentSettings.trigger
   );
   return true;
 });

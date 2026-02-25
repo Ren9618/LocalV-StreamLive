@@ -2,6 +2,12 @@ import { useState } from 'react';
 import './StatusBar.css';
 
 interface HealthStatus {
+    llm: {
+        provider: string;
+        connected: boolean;
+        models: string[];
+        error?: string;
+    };
     ollama: {
         connected: boolean;
         models: string[];
@@ -33,7 +39,8 @@ function StatusBar({ health }: StatusBarProps) {
         );
     }
 
-    const hasIssue = !health.ollama.connected || !health.voicevox.connected;
+    const hasIssue = !health.llm.connected || !health.voicevox.connected;
+    const providerLabel = health.llm.provider === 'ollama' ? 'Ollama' : 'LLM API';
 
     return (
         <>
@@ -118,12 +125,12 @@ function StatusBar({ health }: StatusBarProps) {
 
             {/* ステータスバー */}
             <div className="status-bar">
-                {/* Ollama ステータス */}
-                <div className={`status-item ${health.ollama.connected ? 'connected' : 'disconnected'}`}>
-                    <span className="status-dot">{health.ollama.connected ? '🟢' : '🔴'}</span>
-                    <span className="status-label">Ollama</span>
-                    {health.ollama.connected ? (
-                        <span className="status-detail">{health.ollama.models.length}モデル</span>
+                {/* LLM ステータス */}
+                <div className={`status-item ${health.llm.connected ? 'connected' : 'disconnected'}`}>
+                    <span className="status-dot">{health.llm.connected ? '🟢' : '🔴'}</span>
+                    <span className="status-label">{providerLabel}</span>
+                    {health.llm.connected ? (
+                        <span className="status-detail">{health.llm.models.length}モデル</span>
                     ) : (
                         <span className="status-error">未接続</span>
                     )}
@@ -146,6 +153,16 @@ function StatusBar({ health }: StatusBarProps) {
                         ❓ セットアップガイド
                     </button>
                 )}
+
+                {/* 寄付リンク */}
+                <a
+                    className="donate-link"
+                    href="https://buymeacoffee.com/ray_9618"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    ☕ 開発を支援する
+                </a>
             </div>
         </>
     );

@@ -1,7 +1,14 @@
 import { fetch } from 'undici';
+import type { AiProviderType } from './brain';
 
 // === ヘルスチェック結果の型定義 ===
 export interface HealthStatus {
+    llm: {
+        provider: AiProviderType;
+        connected: boolean;
+        models: string[];
+        error?: string;
+    };
     ollama: {
         connected: boolean;
         models: string[];
@@ -18,17 +25,38 @@ export interface HealthStatus {
 export class HealthChecker {
     private ollamaUrl: string;
     private voicevoxUrl: string;
+    private aiProvider: AiProviderType;
+    private openaiCompatUrl: string;
+    private openaiCompatApiKey: string;
     private intervalId: ReturnType<typeof setInterval> | null = null;
 
-    constructor(ollamaUrl: string, voicevoxUrl: string) {
+    constructor(
+        ollamaUrl: string,
+        voicevoxUrl: string,
+        aiProvider: AiProviderType = 'ollama',
+        openaiCompatUrl: string = '',
+        openaiCompatApiKey: string = ''
+    ) {
         this.ollamaUrl = ollamaUrl;
         this.voicevoxUrl = voicevoxUrl;
+        this.aiProvider = aiProvider;
+        this.openaiCompatUrl = openaiCompatUrl;
+        this.openaiCompatApiKey = openaiCompatApiKey;
     }
 
-    // URLを更新する（設定変更時に呼ばれる）
-    updateUrls(ollamaUrl: string, voicevoxUrl: string): void {
+    // URLとプロバイダーを更新する（設定変更時に呼ばれる）
+    updateUrls(
+        ollamaUrl: string,
+        voicevoxUrl: string,
+        aiProvider?: AiProviderType,
+        openaiCompatUrl?: string,
+        openaiCompatApiKey?: string
+    ): void {
         this.ollamaUrl = ollamaUrl;
         this.voicevoxUrl = voicevoxUrl;
+        if (aiProvider !== undefined) this.aiProvider = aiProvider;
+        if (openaiCompatUrl !== undefined) this.openaiCompatUrl = openaiCompatUrl;
+        if (openaiCompatApiKey !== undefined) this.openaiCompatApiKey = openaiCompatApiKey;
     }
 
     // Ollamaの接続チェック + モデル一覧取得
@@ -92,13 +120,57 @@ export class HealthChecker {
         }
     }
 
+    // OpenAI互換 APIの接続チェック
+    async checkOpenAiCompat(): Promise<HealthStatus['llm']> {
+        if (!this.openaiCompatUrl) {
+            return { provider: 'openai-compat', connected: false, models: [], error: 'API URLが設定されていません。' };
+        }
+        try {
+            const base = this.openaiCompatUrl.replace(/\/+$/, '');
+            const headers: Record<string, string> = {};
+            if (this.openaiCompatApiKey) {
+                headers['Authorization'] = `Bearer ${this.openaiCompatApiKey}`;
+            }
+
+            // /v1/models エンドポイントで接続確認
+            const response = await fetch(`${base}/v1/models`, {
+                headers,
+                signal: AbortSignal.timeout(5000),
+            });
+
+            if (!response.ok) {
+                return { provider: 'openai-compat', connected: false, models: [], error: `HTTP ${response.status}` };
+            }
+
+            const data = await response.json() as any;
+            const models = (data.data || []).map((m: any) => m.id as string);
+            return { provider: 'openai-compat', connected: true, models };
+        } catch (error: any) {
+            const message = error?.code === 'ECONNREFUSED'
+                ? 'APIサーバーに接続できません。URLを確認してください。'
+                : `接続エラー: ${error?.message || error}`;
+            return { provider: 'openai-compat', connected: false, models: [], error: message };
+        }
+    }
+
+    // 現在のプロバイダーにLLM接続チェック
+    async checkLlm(): Promise<HealthStatus['llm']> {
+        if (this.aiProvider === 'openai-compat') {
+            return this.checkOpenAiCompat();
+        }
+        // Ollamaの場合は既存のcheckOllamaを流用
+        const ollamaResult = await this.checkOllama();
+        return { provider: 'ollama', ...ollamaResult };
+    }
+
     // 全サービスのヘルスチェック
     async checkAll(): Promise<HealthStatus> {
-        const [ollama, voicevox] = await Promise.all([
+        const [llm, ollama, voicevox] = await Promise.all([
+            this.checkLlm(),
             this.checkOllama(),
             this.checkVoiceVox(),
         ]);
-        return { ollama, voicevox };
+        return { llm, ollama, voicevox };
     }
 
     // 定期監視を開始。コールバックで結果を通知

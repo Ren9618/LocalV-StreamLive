@@ -11,6 +11,13 @@ export default defineConfig({
       {
         // Main-Process entry file of the Electron App.
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['sqlite', 'sqlite3']
+            }
+          }
+        }
       },
       {
         entry: 'electron/preload.ts',
