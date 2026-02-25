@@ -2,7 +2,7 @@
 
 🌍 Read this in other languages: [English](README.en.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md)
 
-LocalV-StreamLiveは、あなたのPCローカル環境で完結する「プライバシー重視・完全オフライン」のAI配信ボット＆アシスタントツール群です。
+LocalV-StreamLiveは、あなたのPCで完結する「プライバシー重視・完全オフライン」のAI配信ボット＆アシスタントツール群です。
 現在、メインアプリとしてYouTube Liveの配信コメントに毒舌でツッコミを入れるAIマスコット **「Stream Companion」** を搭載しています。
 
 ## ✨ 特徴 (Features)

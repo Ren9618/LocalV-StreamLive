@@ -2,7 +2,7 @@
 
 🌍 Read this in other languages: [日本語](README.md) | [English](README.en.md) | [简体中文](README.zh-CN.md) | [한국어](README.ko.md)
 
-LocalV-StreamLive 是一款專注於隱私、完全離線運行於本地 PC 環境的 AI 直播輔助機器人應用套件。
+LocalV-StreamLive 是一款專注於隱私、完全離線運行於您的 PC 上的 AI 直播輔助機器人應用套件。
 目前，主推的應用 **"Stream Companion"** 是一位 AI 吉祥物，能以毒舌且幽默的方式與 YouTube 直播評論進行互動。
 
 ## ✨ 特性 (Features)

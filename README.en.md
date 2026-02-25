@@ -2,7 +2,7 @@
 
 🌍 Read this in other languages: [日本語](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md)
 
-LocalV-StreamLive is a privacy-focused, entirely offline AI broadcast bot and assistant tool suite designed to run entirely on your local PC environment.
+LocalV-StreamLive is a privacy-focused, entirely offline AI broadcast bot and assistant tool suite designed to run entirely on your PC.
 Currently, it features **"Stream Companion"**, an AI mascot that humorously and sharply interacts with YouTube Live stream comments.
 
 ## ✨ Features

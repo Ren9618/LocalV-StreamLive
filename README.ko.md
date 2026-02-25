@@ -2,7 +2,7 @@
 
 🌍 Read this in other languages: [日本語](README.md) | [English](README.en.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
-LocalV-StreamLive는 개인정보 보호를 중시하며 로컬 PC 환경에서 완전히 오프라인으로 실행되는 AI 방송 봇 및 어시스턴트 도구 모음입니다.
+LocalV-StreamLive는 개인정보 보호를 중시하며 사용자의 PC에서 완전히 오프라인으로 실행되는 AI 방송 봇 및 어시스턴트 도구 모음입니다.
 현재 메인 앱으로 YouTube Live 방송 댓글에 센스 있고 유쾌하게 반응하는 AI 마스코트 **"Stream Companion"** 을 제공하고 있습니다.
 
 ## ✨ 기능 (Features)
