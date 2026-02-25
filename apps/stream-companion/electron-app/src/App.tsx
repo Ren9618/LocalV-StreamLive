@@ -3,23 +3,27 @@ import './App.css';
 import Settings from './Settings';
 import StatusBar from './StatusBar';
 import LogViewer from './LogViewer';
+import Dashboard from './Dashboard';
 import Filters from './Filters';
+import { LocaleProvider, useLocale } from './i18n';
 
 // Electronの型定義
 declare global {
   interface Window {
     electron: {
-      sendComment: (text: string, isSuperChat?: boolean, username?: string) => Promise<{ reply: string | null, audioData: string | null, filtered?: boolean, filterType?: string }>;
+      sendComment: (text: string, isSuperChat?: boolean, username?: string, userLogoUrl?: string) => Promise<{ reply: string | null, audioData: string | null, filtered?: boolean, filterType?: string }>;
       getSettings: () => Promise<any>;
       getDefaultSettings: () => Promise<any>;
       saveSettings: (settings: any) => Promise<any>;
       checkHealth: () => Promise<any>;
-      onHealthStatus: (callback: (status: any) => void) => void;
+      onHealthStatus: (callback: (status: any) => void) => () => void;
       getLogs: () => Promise<any[]>;
       clearLogs: () => Promise<boolean>;
-      onLogEntry: (callback: (entry: any) => void) => void;
+      setProcessingPaused: (paused: boolean) => Promise<boolean>;
+      getProcessingPaused: () => Promise<boolean>;
+      onLogEntry: (callback: (entry: any) => void) => () => void;
       getWarmupStatus: () => Promise<string>;
-      onWarmupStatus: (callback: (status: string) => void) => void;
+      onWarmupStatus: (callback: (status: string) => void) => () => void;
       getFilters: () => Promise<any>;
       saveFilters: (filters: any) => Promise<boolean>;
       // プリセット管理
@@ -32,12 +36,21 @@ declare global {
       // オーバーレイ設定
       getOverlaySettings: () => Promise<any>;
       saveOverlaySettings: (settings: any) => Promise<boolean>;
+      // オーバーレイプリセット管理
+      getOverlayPresets: () => Promise<{ name: string, path: string }[]>;
+      saveOverlayPreset: (name: string, settings: any) => Promise<{ name: string, path: string }>;
+      deleteOverlayPreset: (name: string) => Promise<boolean>;
+      loadOverlayPreset: (name: string) => Promise<any | null>;
+      exportOverlayPreset: (settings: any, defaultName: string) => Promise<boolean>;
+      importOverlayPreset: () => Promise<{ name: string, settings: any } | null>;
+      // YouTube等の外部ソースからの音声自動再生
+      onPlayAudio: (callback: (audioData: string) => void) => () => void;
     }
   }
 }
 
 // タブの型定義
-type TabType = 'test' | 'filters' | 'logs' | 'settings';
+type TabType = 'dashboard' | 'test' | 'filters' | 'logs' | 'settings';
 
 // ヘルスステータスの型定義
 interface HealthStatus {
@@ -60,7 +73,7 @@ interface HealthStatus {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('test');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [inputText, setInputText] = useState("");
   const [inputUsername, setInputUsername] = useState("Guest");
   const [messages, setMessages] = useState<{ user: string, bot: string, tag?: string }[]>([]);
@@ -70,6 +83,7 @@ function App() {
   const [warmupStatus, setWarmupStatus] = useState<'warming-up' | 'ready' | 'failed'>('warming-up');
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
   const chatAreaRef = useRef<HTMLDivElement>(null);
+  const { t } = useLocale();
 
   // 自動スクロール
   useEffect(() => {
@@ -78,19 +92,42 @@ function App() {
     }
   }, [messages]);
 
+  // YouTube等の外部ソースからの音声自動再生
+  useEffect(() => {
+    const cleanup = window.electron.onPlayAudio(async (audioData: string) => {
+      try {
+        const audio = new Audio(`data:audio/wav;base64,${audioData}`);
+        // 設定を取得して指定されたオーディオデバイスへルーティング
+        try {
+          const settings = await window.electron.getSettings();
+          if (settings.audioOutputDeviceId) {
+            await (audio as any).setSinkId(settings.audioOutputDeviceId);
+          }
+        } catch (err) {
+          console.error('[play-audio] デバイス設定エラー:', err);
+        }
+        audio.play().catch(console.error);
+      } catch (e) {
+        console.error('[play-audio] 再生エラー:', e);
+      }
+    });
+    return cleanup;
+  }, []);
+
   // ウォームアップ状態の購読
   useEffect(() => {
     window.electron.getWarmupStatus().then((status) => {
       setWarmupStatus(status as any);
     });
-    window.electron.onWarmupStatus((status) => {
+    const cleanup = window.electron.onWarmupStatus((status) => {
       setWarmupStatus(status as any);
     });
+    return cleanup;
   }, []);
 
   const handleTabChange = (newTab: TabType) => {
     if (activeTab === 'settings' && hasUnsavedSettings) {
-      if (!window.confirm("設定が保存されていません。変更を破棄して他のタブへ移動しますか？")) {
+      if (!window.confirm(t('test.unsavedConfirm'))) {
         return;
       }
       setHasUnsavedSettings(false);
@@ -101,9 +138,10 @@ function App() {
   // ヘルスステータスの受信を購読
   useEffect(() => {
     window.electron.checkHealth().then(setHealth);
-    window.electron.onHealthStatus((status) => {
+    const cleanup = window.electron.onHealthStatus((status) => {
       setHealth(status);
     });
+    return cleanup;
   }, []);
 
   // LLMと音声サービスが接続されているか
@@ -119,7 +157,7 @@ function App() {
     setLoading(true);
 
     const userTag = superChat ? '💰 スパチャ' : undefined;
-    setMessages(prev => [...prev, { user: `[${username}] ${userText}`, bot: "...", tag: userTag }]);
+    setMessages(prev => [...prev, { user: `${username}: ${userText}`, bot: "...", tag: userTag }]);
 
     try {
       const result = await window.electron.sendComment(userText, superChat, username);
@@ -127,7 +165,7 @@ function App() {
       // フィルターで無視された場合
       if (result.filtered && result.reply === null) {
         setMessages(prev => prev.map(msg =>
-          msg.user === `[${username}] ${userText}` && msg.bot === "..." ? { ...msg, bot: `🚫 [無視] ${result.filterType}` } : msg
+          msg.user === `${username}: ${userText}` && msg.bot === "..." ? { ...msg, bot: `🚫 [無視] ${result.filterType}` } : msg
         ));
         return;
       }
@@ -136,25 +174,11 @@ function App() {
       const botReply = result.reply || 'エラーが発生しました';
       const botTag = result.filtered ? `⚡ ${result.filterType}` : undefined;
       setMessages(prev => prev.map(msg =>
-        msg.user === `[${username}] ${userText}` && msg.bot === "..." ? { ...msg, bot: botReply, tag: msg.tag ? `${msg.tag} → ${botTag || '🤖 AI'}` : botTag || undefined } : msg
+        msg.user === `${username}: ${userText}` && msg.bot === "..." ? { ...msg, bot: botReply, tag: msg.tag ? `${msg.tag} → ${botTag || '🤖 AI'}` : botTag || undefined } : msg
       ));
 
-      if (result.audioData) {
-        const audio = new Audio(`data:audio/wav;base64,${result.audioData}`);
+      // 音声再生はpreload.tsのonPlayAudioイベント経由（useEffect内）で行われるため、ここでの重複再生は削除
 
-        // 設定を取得して指定されたオーディオデバイスへルーティングする
-        try {
-          const settings = await window.electron.getSettings();
-          if (settings.audioOutputDeviceId) {
-            // HTMLAudioElement#setSinkIdは一部の型定義で不足している場合があるためキャスト
-            await (audio as any).setSinkId(settings.audioOutputDeviceId);
-          }
-        } catch (err) {
-          console.error("Failed to set audio output device:", err);
-        }
-
-        audio.play().catch(console.error);
-      }
     } catch (e) {
       console.error(e);
       setMessages(prev => prev.map(msg =>
@@ -172,8 +196,8 @@ function App() {
         <div className="warmup-overlay">
           <div className="warmup-content">
             <div className="warmup-spinner"></div>
-            <div className="warmup-text">AIモデルを起動中...</div>
-            <div className="warmup-subtext">初回起動は少し時間がかかります</div>
+            <div className="warmup-text">{t('warmup.loading')}</div>
+            <div className="warmup-subtext">{t('warmup.subtitle')}</div>
           </div>
         </div>
       )}
@@ -181,55 +205,64 @@ function App() {
         <div className="warmup-overlay warmup-failed">
           <div className="warmup-content">
             <div className="warmup-icon">⚠️</div>
-            <div className="warmup-text">AIモデルの起動に失敗しました</div>
-            <div className="warmup-subtext">AIサービスが起動しているか確認してください</div>
+            <div className="warmup-text">{t('warmup.failed')}</div>
+            <div className="warmup-subtext">{t('warmup.failedSub')}</div>
           </div>
         </div>
       )}
       {/* === タブナビゲーション === */}
       <div className="tab-nav">
         <button
+          className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => handleTabChange('dashboard')}
+        >
+          {t('tab.dashboard')}
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'test' ? 'active' : ''}`}
           onClick={() => handleTabChange('test')}
         >
-          🧪 テスト
+          {t('tab.test')}
         </button>
         <button
           className={`tab-btn ${activeTab === 'filters' ? 'active' : ''}`}
           onClick={() => handleTabChange('filters')}
         >
-          🔧 フィルター
+          {t('tab.filters')}
         </button>
         <button
           className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
           onClick={() => handleTabChange('logs')}
         >
-          📋 ログ
+          {t('tab.logs')}
         </button>
         <button
           className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => handleTabChange('settings')}
         >
-          ⚙️ 設定
+          {t('tab.settings')}
         </button>
       </div>
 
       {/* === タブ内容 === */}
       <div className="tab-content">
+        {activeTab === 'dashboard' && (
+          <Dashboard health={health} />
+        )}
         {activeTab === 'test' && (
           <>
             {health && !isReady && (
               <div className="warning-banner">
-                ⚠️ {!health.llm.connected && 'AIサービスが未接続です。'}
-                {!health.voicevox.connected && 'VoiceVoxが未接続です。'}
-                設定タブで接続状況を確認してください。
+                ⚠️ {!health.llm.connected && t('test.aiNotConnected')}
+                {!health.voicevox.connected && t('test.voicevoxNotConnected')}
+                {t('test.checkSettings')}
               </div>
             )}
 
             <div className="chat-area" ref={chatAreaRef}>
               {messages.length === 0 && (
                 <div className="chat-empty">
-                  コメントを入力してAIの返答をテストできます
+                  {t('test.empty')}
                 </div>
               )}
               {messages.map((msg, i) => (
@@ -241,7 +274,7 @@ function App() {
                   <div className="bot-msg">🤖 {msg.bot}</div>
                 </div>
               ))}
-              {loading && <div className="loading">AI Thinking...</div>}
+              {loading && <div className="loading">{t('test.thinking')}</div>}
             </div>
 
             <div className="input-area">
@@ -251,14 +284,14 @@ function App() {
                   checked={isSuperChatTest}
                   onChange={(e) => setIsSuperChatTest(e.target.checked)}
                 />
-                <span className="superchat-label">💰 スパチャとして送信</span>
+                <span className="superchat-label">{t('test.superChat')}</span>
               </label>
               <div style={{ display: 'flex', gap: '8px', flex: 1, height: '40px' }}>
                 <input
                   type="text"
                   value={inputUsername}
                   onChange={(e) => setInputUsername(e.target.value)}
-                  placeholder="ユーザー名 (Guest)"
+                  placeholder={t('test.username')}
                   disabled={!isReady}
                   style={{ width: '120px' }}
                 />
@@ -266,7 +299,7 @@ function App() {
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder={isReady ? "コメントを入力してテスト..." : "⚠ サービス未接続"}
+                  placeholder={isReady ? t('test.placeholder') : t('test.notConnected')}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   disabled={!isReady}
                   style={{ flex: 1 }}
@@ -277,7 +310,7 @@ function App() {
                 disabled={!isReady || loading || !inputText.trim()}
                 style={{ height: '40px' }}
               >
-                送信
+                {t('test.send')}
               </button>
             </div>
           </>
@@ -302,4 +335,13 @@ function App() {
   );
 }
 
-export default App;
+// LocaleProviderでラップしたエントリーポイント
+function AppWithLocale() {
+  return (
+    <LocaleProvider>
+      <App />
+    </LocaleProvider>
+  );
+}
+
+export default AppWithLocale;

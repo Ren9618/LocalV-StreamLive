@@ -1,0 +1,234 @@
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 10px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* === セッション統計カード === */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.stat-card {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #00ff88;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* === ダッシュボードグリッド === */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.dashboard-card {
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-card h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.1rem;
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
+}
+
+.dashboard-card.full-width {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+}
+
+/* === 入力フィールド === */
+.input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.dashboard-input,
+.dashboard-select {
+    flex: 1;
+    padding: 8px 12px;
+    background: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.dashboard-input:focus,
+.dashboard-select:focus {
+    border-color: #007acc;
+    outline: none;
+}
+
+.connection-status {
+    font-size: 0.9rem;
+    color: #aaa;
+}
+
+.status-ok {
+    color: #4CAF50;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.status-err {
+    color: #F44336;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.action-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+/* === 一時停止ボタン === */
+.btn-pause {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #333;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+}
+
+.btn-pause:hover {
+    background: #444;
+}
+
+.btn-pause.paused {
+    background: linear-gradient(135deg, #2d5a2d, #1e3d1e);
+    border-color: #4CAF50;
+    color: #4CAF50;
+    animation: pausePulse 2s ease-in-out infinite;
+}
+
+@keyframes pausePulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 12px 2px rgba(76, 175, 80, 0.3);
+    }
+}
+
+.pause-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #F44336;
+    font-style: italic;
+}
+
+/* === クイックテスト === */
+.quick-test-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* === ミニログビュー === */
+.mini-log-view {
+    flex: 1;
+    background: #1e1e1e;
+    border-radius: 6px;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.empty-log {
+    color: #666;
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+.mini-log-entry {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px;
+    border-radius: 6px;
+    border-left: 3px solid #007acc;
+}
+
+.log-user {
+    font-size: 0.85rem;
+    color: #bbb;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.log-tag {
+    background: #333;
+    color: #aaa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.log-bot {
+    font-size: 0.95rem;
+    color: #fff;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.log-skipped {
+    font-size: 0.8rem;
+    color: #666;
+    font-style: italic;
+}
+
+.log-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.mini-log-entry.superchat {
+    border-left-color: #FFD700;
+    background: rgba(255, 215, 0, 0.05);
+}

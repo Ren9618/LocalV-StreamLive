@@ -19,9 +19,13 @@ export class ViewerMemory {
     private dbPromise: Promise<void>;
 
     constructor() {
-        // userData配下に viewer-memory.db を保存
         this.dbPath = path.join(app.getPath('userData'), 'viewer-memory.db');
         this.dbPromise = this.initDb();
+    }
+
+    // 外部からの初期化完了待機用メソッド
+    async init(): Promise<void> {
+        return this.dbPromise;
     }
 
     // DBの初期化とテーブル作成

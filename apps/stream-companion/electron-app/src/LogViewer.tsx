@@ -1,62 +1,59 @@
 import { useState, useEffect, useRef } from 'react';
 import './LogViewer.css';
+import { useLocale } from './i18n';
 
 // ログエントリの型定義
 interface LogEntry {
     id: number;
     timestamp: string;
+    username: string;
     userComment: string;
+    userLogoUrl?: string;
     aiReply: string;
     source: 'ai' | 'filter' | 'error';
     processingMs: number;
+    isSuperChat?: boolean;
 }
 
 function LogViewer() {
+    const { t } = useLocale();
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [filter, setFilter] = useState<'all' | 'ai' | 'filter' | 'error'>('all');
     const logEndRef = useRef<HTMLDivElement>(null);
 
-    // 初回読み込み＋リアルタイム受信
     useEffect(() => {
-        // 既存ログを取得
         window.electron.getLogs().then((existingLogs: LogEntry[]) => {
             setLogs(existingLogs);
         });
-
-        // 新しいログのリアルタイム受信
-        window.electron.onLogEntry((entry: LogEntry) => {
+        const cleanup = window.electron.onLogEntry((entry: LogEntry) => {
             setLogs(prev => [...prev, entry]);
         });
+        return cleanup;
     }, []);
 
-    // 新しいログが来たら自動スクロール
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    // ログクリア
     const handleClear = async () => {
         await window.electron.clearLogs();
         setLogs([]);
     };
 
-    // フィルター適用
     const filteredLogs = filter === 'all'
         ? logs
         : logs.filter(log => log.source === filter);
 
-    // タイムスタンプをHH:MM:SS形式に変換
     const formatTime = (isoString: string) => {
         const d = new Date(isoString);
         return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
 
-    // ソースラベル
     const sourceLabel = (source: LogEntry['source']) => {
         switch (source) {
-            case 'ai': return { text: 'AI', className: 'badge-ai' };
-            case 'filter': return { text: 'フィルター', className: 'badge-filter' };
-            case 'error': return { text: 'エラー', className: 'badge-error' };
+            case 'ai': return { text: t('log.badgeAi'), className: 'badge-ai' };
+            case 'filter': return { text: t('log.badgeFilter'), className: 'badge-filter' };
+            case 'error': return { text: t('log.badgeError'), className: 'badge-error' };
         }
     };
 
@@ -69,29 +66,29 @@ function LogViewer() {
                         className={`log-filter-btn ${filter === 'all' ? 'active' : ''}`}
                         onClick={() => setFilter('all')}
                     >
-                        すべて ({logs.length})
+                        {t('log.all')} ({logs.length})
                     </button>
                     <button
                         className={`log-filter-btn ${filter === 'ai' ? 'active' : ''}`}
                         onClick={() => setFilter('ai')}
                     >
-                        🤖 AI ({logs.filter(l => l.source === 'ai').length})
+                        {t('log.ai')} ({logs.filter(l => l.source === 'ai').length})
                     </button>
                     <button
                         className={`log-filter-btn ${filter === 'filter' ? 'active' : ''}`}
                         onClick={() => setFilter('filter')}
                     >
-                        ⚡ フィルター ({logs.filter(l => l.source === 'filter').length})
+                        {t('log.filter')} ({logs.filter(l => l.source === 'filter').length})
                     </button>
                     <button
                         className={`log-filter-btn ${filter === 'error' ? 'active' : ''}`}
                         onClick={() => setFilter('error')}
                     >
-                        ❌ エラー ({logs.filter(l => l.source === 'error').length})
+                        {t('log.error')} ({logs.filter(l => l.source === 'error').length})
                     </button>
                 </div>
                 <button className="log-clear-btn" onClick={handleClear}>
-                    🗑️ クリア
+                    {t('log.clear')}
                 </button>
             </div>
 
@@ -100,8 +97,8 @@ function LogViewer() {
                 {filteredLogs.length === 0 ? (
                     <div className="log-empty">
                         {logs.length === 0
-                            ? 'ログはまだありません。テストタブでコメントを送信するとここに記録されます。'
-                            : 'フィルター条件に一致するログがありません。'
+                            ? t('log.empty')
+                            : t('log.emptyFiltered')
                         }
                     </div>
                 ) : (
@@ -114,7 +111,12 @@ function LogViewer() {
                                     <span className={`log-badge ${badge.className}`}>{badge.text}</span>
                                     <span className="log-ms">{log.processingMs}ms</span>
                                 </div>
-                                <div className="log-comment">👤 {log.userComment}</div>
+                                <div className="log-comment">
+                                    {log.isSuperChat ? '💰 ' : '💬 '}
+                                    {log.userLogoUrl && <img src={log.userLogoUrl} alt="icon" style={{ width: '1.2em', height: '1.2em', borderRadius: '50%', verticalAlign: 'middle', marginRight: '4px' }} />}
+                                    <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{log.username}</span>
+                                    {log.userComment}
+                                </div>
                                 <div className="log-reply">🤖 {log.aiReply}</div>
                             </div>
                         );

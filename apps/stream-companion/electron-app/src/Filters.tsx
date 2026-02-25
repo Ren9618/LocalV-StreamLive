@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Filters.css';
+import { useLocale } from './i18n';
 
 // 定型文パターンの型
 interface QuickReplyPattern {
@@ -23,6 +24,7 @@ interface FiltersProps {
 }
 
 function Filters({ onUnsavedChanges }: FiltersProps) {
+    const { t } = useLocale();
     const [filters, setFilters] = useState<FilterSettings | null>(null);
     const [saving, setSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
@@ -32,88 +34,59 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
         if (onUnsavedChanges) onUnsavedChanges(true);
     };
 
-    // ブラックリスト追加用
     const [newBlacklistWord, setNewBlacklistWord] = useState('');
-
-    // スパチャ返答追加用
     const [newSuperChatReply, setNewSuperChatReply] = useState('');
-
-    // 定型文パターン追加用
     const [newPatternLabel, setNewPatternLabel] = useState('');
     const [newPatternRegex, setNewPatternRegex] = useState('');
     const [newPatternReply, setNewPatternReply] = useState('');
-
-    // 指名モードプレフィックス追加用
     const [newTriggerPrefix, setNewTriggerPrefix] = useState('');
 
-    // 初回読み込み
     useEffect(() => {
         window.electron.getFilters().then((f: FilterSettings) => {
             setFilters(f);
         });
     }, []);
 
-    // 保存
     const handleSave = async () => {
         if (!filters) return;
         setSaving(true);
         setSaveMessage('');
         try {
             await window.electron.saveFilters(filters);
-            setSaveMessage('✅ フィルター設定を保存しました！');
+            setSaveMessage(t('filter.saved'));
             if (onUnsavedChanges) onUnsavedChanges(false);
         } catch {
-            setSaveMessage('❌ 保存に失敗しました');
+            setSaveMessage(t('filter.saveFailed'));
         } finally {
             setSaving(false);
             setTimeout(() => setSaveMessage(''), 3000);
         }
     };
 
-    // === ブラックリスト操作 ===
     const addBlacklistWord = () => {
         if (!filters || !newBlacklistWord.trim()) return;
-        updateFilters({
-            ...filters,
-            blacklist: [...filters.blacklist, newBlacklistWord.trim()]
-        });
+        updateFilters({ ...filters, blacklist: [...filters.blacklist, newBlacklistWord.trim()] });
         setNewBlacklistWord('');
     };
-
     const removeBlacklistWord = (index: number) => {
         if (!filters) return;
-        updateFilters({
-            ...filters,
-            blacklist: filters.blacklist.filter((_, i) => i !== index)
-        });
+        updateFilters({ ...filters, blacklist: filters.blacklist.filter((_, i) => i !== index) });
     };
 
-    // === スパチャ返答操作 ===
     const addSuperChatReply = () => {
         if (!filters || !newSuperChatReply.trim()) return;
-        updateFilters({
-            ...filters,
-            superChatReplies: [...filters.superChatReplies, newSuperChatReply.trim()]
-        });
+        updateFilters({ ...filters, superChatReplies: [...filters.superChatReplies, newSuperChatReply.trim()] });
         setNewSuperChatReply('');
     };
-
     const removeSuperChatReply = (index: number) => {
         if (!filters) return;
-        updateFilters({
-            ...filters,
-            superChatReplies: filters.superChatReplies.filter((_, i) => i !== index)
-        });
+        updateFilters({ ...filters, superChatReplies: filters.superChatReplies.filter((_, i) => i !== index) });
     };
 
-    // === 定型文パターン操作 ===
     const addQuickReplyPattern = () => {
         if (!filters || !newPatternLabel.trim() || !newPatternRegex.trim() || !newPatternReply.trim()) return;
-        // 正規表現の検証
-        try {
-            new RegExp(newPatternRegex);
-        } catch {
-            setSaveMessage('❌ 正規表現が無効です');
+        try { new RegExp(newPatternRegex); } catch {
+            setSaveMessage(t('filter.pattern.invalidRegex'));
             setTimeout(() => setSaveMessage(''), 3000);
             return;
         }
@@ -125,43 +98,27 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                 replies: newPatternReply.split(',').map(r => r.trim()).filter(r => r)
             }]
         });
-        setNewPatternLabel('');
-        setNewPatternRegex('');
-        setNewPatternReply('');
+        setNewPatternLabel(''); setNewPatternRegex(''); setNewPatternReply('');
     };
-
     const removeQuickReplyPattern = (index: number) => {
         if (!filters) return;
-        updateFilters({
-            ...filters,
-            quickReplies: filters.quickReplies.filter((_, i) => i !== index)
-        });
+        updateFilters({ ...filters, quickReplies: filters.quickReplies.filter((_, i) => i !== index) });
     };
-
-    // 定型文パターン内の返答を追加
-    const addReplyToPattern = (patternIndex: number, reply: string) => {
+    const addReplyToPattern = (pi: number, reply: string) => {
         if (!filters || !reply.trim()) return;
-        const updated = [...filters.quickReplies];
-        updated[patternIndex] = {
-            ...updated[patternIndex],
-            replies: [...updated[patternIndex].replies, reply.trim()]
-        };
-        updateFilters({ ...filters, quickReplies: updated });
+        const u = [...filters.quickReplies];
+        u[pi] = { ...u[pi], replies: [...u[pi].replies, reply.trim()] };
+        updateFilters({ ...filters, quickReplies: u });
     };
-
-    // 定型文パターン内の返答を削除
-    const removeReplyFromPattern = (patternIndex: number, replyIndex: number) => {
+    const removeReplyFromPattern = (pi: number, ri: number) => {
         if (!filters) return;
-        const updated = [...filters.quickReplies];
-        updated[patternIndex] = {
-            ...updated[patternIndex],
-            replies: updated[patternIndex].replies.filter((_, i) => i !== replyIndex)
-        };
-        updateFilters({ ...filters, quickReplies: updated });
+        const u = [...filters.quickReplies];
+        u[pi] = { ...u[pi], replies: u[pi].replies.filter((_, i) => i !== ri) };
+        updateFilters({ ...filters, quickReplies: u });
     };
 
     if (!filters) {
-        return <div className="filters-loading">フィルター設定を読み込み中...</div>;
+        return <div className="filters-loading">{t('filter.loading')}</div>;
     }
 
     return (
@@ -170,8 +127,8 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
 
                 {/* === 指名モード === */}
                 <section className="filter-section">
-                    <h2>🎯 指名モード</h2>
-                    <p className="filter-desc">有効にすると、トリガー付きコメントのみにAIが反応します（スパチャは常に反応）</p>
+                    <h2>{t('filter.trigger.title')}</h2>
+                    <p className="filter-desc">{t('filter.trigger.desc')}</p>
 
                     <div className="trigger-toggle">
                         <label className="toggle-switch">
@@ -186,13 +143,13 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                             <span className="toggle-slider"></span>
                         </label>
                         <span className="trigger-status">
-                            {filters.trigger.enabled ? '✅ 有効' : '❌ 無効（全コメントに反応）'}
+                            {filters.trigger.enabled ? t('filter.trigger.enabled') : t('filter.trigger.disabled')}
                         </span>
                     </div>
 
                     {filters.trigger.enabled && (
                         <>
-                            <p className="filter-sublabel">トリガープレフィックス:</p>
+                            <p className="filter-sublabel">{t('filter.trigger.prefixLabel')}</p>
                             <div className="tag-list">
                                 {filters.trigger.prefixes.map((prefix, i) => (
                                     <span key={i} className="tag tag-trigger">
@@ -209,7 +166,7 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                                     </span>
                                 ))}
                                 {filters.trigger.prefixes.length === 0 && (
-                                    <span className="tag-empty">プレフィックスがありません</span>
+                                    <span className="tag-empty">{t('filter.trigger.noPrefixes')}</span>
                                 )}
                             </div>
                             <div className="add-row">
@@ -217,15 +174,12 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                                     type="text"
                                     value={newTriggerPrefix}
                                     onChange={(e) => setNewTriggerPrefix(e.target.value)}
-                                    placeholder="例: @AI, !ai, /bot"
+                                    placeholder={t('filter.trigger.placeholder')}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && newTriggerPrefix.trim()) {
                                             setFilters({
                                                 ...filters,
-                                                trigger: {
-                                                    ...filters.trigger,
-                                                    prefixes: [...filters.trigger.prefixes, newTriggerPrefix.trim()]
-                                                }
+                                                trigger: { ...filters.trigger, prefixes: [...filters.trigger.prefixes, newTriggerPrefix.trim()] }
                                             });
                                             setNewTriggerPrefix('');
                                         }
@@ -235,14 +189,11 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                                     if (newTriggerPrefix.trim()) {
                                         setFilters({
                                             ...filters,
-                                            trigger: {
-                                                ...filters.trigger,
-                                                prefixes: [...filters.trigger.prefixes, newTriggerPrefix.trim()]
-                                            }
+                                            trigger: { ...filters.trigger, prefixes: [...filters.trigger.prefixes, newTriggerPrefix.trim()] }
                                         });
                                         setNewTriggerPrefix('');
                                     }
-                                }}>追加</button>
+                                }}>{t('filter.trigger.add')}</button>
                             </div>
                         </>
                     )}
@@ -250,9 +201,8 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
 
                 {/* === ブラックリスト === */}
                 <section className="filter-section">
-                    <h2>🚫 ブラックリスト</h2>
-                    <p className="filter-desc">これらのワードを含むコメントは無視されます</p>
-
+                    <h2>{t('filter.blacklist.title')}</h2>
+                    <p className="filter-desc">{t('filter.blacklist.desc')}</p>
                     <div className="tag-list">
                         {filters.blacklist.map((word, i) => (
                             <span key={i} className="tag tag-danger">
@@ -261,27 +211,25 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                             </span>
                         ))}
                         {filters.blacklist.length === 0 && (
-                            <span className="tag-empty">ブラックリストは空です</span>
+                            <span className="tag-empty">{t('filter.blacklist.empty')}</span>
                         )}
                     </div>
-
                     <div className="add-row">
                         <input
                             type="text"
                             value={newBlacklistWord}
                             onChange={(e) => setNewBlacklistWord(e.target.value)}
-                            placeholder="NGワードを入力..."
+                            placeholder={t('filter.blacklist.placeholder')}
                             onKeyDown={(e) => e.key === 'Enter' && addBlacklistWord()}
                         />
-                        <button className="btn-add" onClick={addBlacklistWord}>追加</button>
+                        <button className="btn-add" onClick={addBlacklistWord}>{t('filter.blacklist.add')}</button>
                     </div>
                 </section>
 
                 {/* === 定型文パターン === */}
                 <section className="filter-section">
-                    <h2>⚡ 定型文パターン</h2>
-                    <p className="filter-desc">パターンにマッチしたコメントにはAIを使わず即座に返答します</p>
-
+                    <h2>{t('filter.pattern.title')}</h2>
+                    <p className="filter-desc">{t('filter.pattern.desc')}</p>
                     {filters.quickReplies.map((qr, qrIndex) => (
                         <div key={qrIndex} className="pattern-card">
                             <div className="pattern-header">
@@ -296,61 +244,43 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                                         <button className="tag-remove" onClick={() => removeReplyFromPattern(qrIndex, rIndex)}>×</button>
                                     </span>
                                 ))}
-                                <AddInlineInput onAdd={(val) => addReplyToPattern(qrIndex, val)} placeholder="返答を追加..." />
+                                <AddInlineInput onAdd={(val) => addReplyToPattern(qrIndex, val)} placeholder={t('filter.pattern.replyPlaceholder')} />
                             </div>
                         </div>
                     ))}
 
-                    {/* 新しいパターンの追加フォーム */}
                     <div className="add-pattern-form">
-                        <h3>＋ パターンを追加</h3>
+                        <h3>{t('filter.pattern.addTitle')}</h3>
                         <div className="add-pattern-fields">
-                            <input
-                                type="text"
-                                value={newPatternLabel}
-                                onChange={(e) => setNewPatternLabel(e.target.value)}
-                                placeholder="ラベル（例: 笑い系）"
-                            />
-                            <input
-                                type="text"
-                                value={newPatternRegex}
-                                onChange={(e) => setNewPatternRegex(e.target.value)}
-                                placeholder="正規表現（例: ^[wｗ]+$）"
-                            />
-                            <input
-                                type="text"
-                                value={newPatternReply}
-                                onChange={(e) => setNewPatternReply(e.target.value)}
-                                placeholder="返答（カンマ区切りで複数）"
-                                onKeyDown={(e) => e.key === 'Enter' && addQuickReplyPattern()}
-                            />
-                            <button className="btn-add" onClick={addQuickReplyPattern}>追加</button>
+                            <input type="text" value={newPatternLabel} onChange={(e) => setNewPatternLabel(e.target.value)} placeholder={t('filter.pattern.label')} />
+                            <input type="text" value={newPatternRegex} onChange={(e) => setNewPatternRegex(e.target.value)} placeholder={t('filter.pattern.regex')} />
+                            <input type="text" value={newPatternReply} onChange={(e) => setNewPatternReply(e.target.value)} placeholder={t('filter.pattern.reply')} onKeyDown={(e) => e.key === 'Enter' && addQuickReplyPattern()} />
+                            <button className="btn-add" onClick={addQuickReplyPattern}>{t('filter.pattern.add')}</button>
                         </div>
 
-                        {/* 正規表現ヘルプ */}
                         <details className="regex-help">
-                            <summary>❓ 正規表現ってなに？</summary>
+                            <summary>{t('filter.pattern.regexHelp')}</summary>
                             <div className="regex-help-content">
-                                <p>コメントのパターンを指定するための記号です。よく使うものだけ覚えればOK！</p>
+                                <p>{t('filter.pattern.regexDesc')}</p>
                                 <table className="regex-table">
                                     <thead>
-                                        <tr><th>記号</th><th>意味</th><th>例</th></tr>
+                                        <tr><th>{t('filter.pattern.regexSymbol')}</th><th>{t('filter.pattern.regexMeaning')}</th><th>{t('filter.pattern.regexExample')}</th></tr>
                                     </thead>
                                     <tbody>
-                                        <tr><td><code>^</code></td><td>先頭から始まる</td><td><code>^こん</code> → 「こん○○」</td></tr>
-                                        <tr><td><code>$</code></td><td>ここで終わる</td><td><code>ちは$</code> → 「○○ちは」</td></tr>
-                                        <tr><td><code>^…$</code></td><td>完全一致</td><td><code>^草$</code> → 「草」だけ</td></tr>
-                                        <tr><td><code>+</code></td><td>1回以上繰り返し</td><td><code>w+</code> → w, ww, www...</td></tr>
-                                        <tr><td><code>|</code></td><td>または（OR）</td><td><code>おつ|バイバイ</code></td></tr>
-                                        <tr><td><code>(A|B)</code></td><td>グループOR</td><td><code>^(おつ|またね)$</code></td></tr>
-                                        <tr><td><code>[AB]</code></td><td>どちらかの文字</td><td><code>[wｗ]</code> → w か ｗ</td></tr>
+                                        <tr><td><code>^</code></td><td>Start of string</td><td><code>^hello</code></td></tr>
+                                        <tr><td><code>$</code></td><td>End of string</td><td><code>bye$</code></td></tr>
+                                        <tr><td><code>^…$</code></td><td>Exact match</td><td><code>^lol$</code></td></tr>
+                                        <tr><td><code>+</code></td><td>1+ repeats</td><td><code>w+</code></td></tr>
+                                        <tr><td><code>|</code></td><td>OR</td><td><code>hi|hello</code></td></tr>
+                                        <tr><td><code>(A|B)</code></td><td>Group OR</td><td><code>^(hi|bye)$</code></td></tr>
+                                        <tr><td><code>[AB]</code></td><td>Any of</td><td><code>[wｗ]</code></td></tr>
                                     </tbody>
                                 </table>
-                                <p className="regex-examples-title">📝 よくあるパターン例:</p>
+                                <p className="regex-examples-title">{t('filter.pattern.regexExamplesTitle')}</p>
                                 <ul className="regex-examples">
-                                    <li><code>^初見$</code> → 「初見」とだけ打ったコメント</li>
-                                    <li><code>^(こんにちは|こんばんは)$</code> → 挨拶</li>
-                                    <li><code>^[wｗ]+$</code> → 「ｗ」「www」などの笑い</li>
+                                    <li><code>^hello$</code></li>
+                                    <li><code>^(hi|hey|hello)$</code></li>
+                                    <li><code>^[wｗ]+$</code></li>
                                 </ul>
                             </div>
                         </details>
@@ -359,9 +289,8 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
 
                 {/* === スパチャ/ビッツ反応 === */}
                 <section className="filter-section">
-                    <h2>💰 スパチャ / ビッツ反応</h2>
-                    <p className="filter-desc">投げ銭が来た時にランダムで返す定型文です</p>
-
+                    <h2>{t('filter.superchat.title')}</h2>
+                    <p className="filter-desc">{t('filter.superchat.desc')}</p>
                     <div className="tag-list">
                         {filters.superChatReplies.map((reply, i) => (
                             <span key={i} className="tag tag-superchat">
@@ -370,19 +299,18 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
                             </span>
                         ))}
                         {filters.superChatReplies.length === 0 && (
-                            <span className="tag-empty">定型文がありません</span>
+                            <span className="tag-empty">{t('filter.superchat.empty')}</span>
                         )}
                     </div>
-
                     <div className="add-row">
                         <input
                             type="text"
                             value={newSuperChatReply}
                             onChange={(e) => setNewSuperChatReply(e.target.value)}
-                            placeholder="お礼メッセージを入力..."
+                            placeholder={t('filter.superchat.placeholder')}
                             onKeyDown={(e) => e.key === 'Enter' && addSuperChatReply()}
                         />
-                        <button className="btn-add" onClick={addSuperChatReply}>追加</button>
+                        <button className="btn-add" onClick={addSuperChatReply}>{t('filter.superchat.add')}</button>
                     </div>
                 </section>
 
@@ -392,40 +320,25 @@ function Filters({ onUnsavedChanges }: FiltersProps) {
             <div className="settings-actions">
                 <div className="settings-actions-buttons">
                     <button className="btn-save" onClick={handleSave} disabled={saving}>
-                        {saving ? '保存中...' : '💾 フィルター設定を保存'}
+                        {saving ? t('filter.saving') : t('filter.save')}
                     </button>
                 </div>
-
                 {saveMessage && (
                     <div className={`save-message ${saveMessage.includes('❌') ? 'error' : ''}`}>
                         {saveMessage}
                     </div>
                 )}
             </div>
-        </div >
+        </div>
     );
 }
 
-// インライン追加用の小さなコンポーネント
 function AddInlineInput({ onAdd, placeholder }: { onAdd: (val: string) => void; placeholder: string }) {
     const [value, setValue] = useState('');
-
-    const handleAdd = () => {
-        if (value.trim()) {
-            onAdd(value);
-            setValue('');
-        }
-    };
-
+    const handleAdd = () => { if (value.trim()) { onAdd(value); setValue(''); } };
     return (
         <span className="inline-add">
-            <input
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={placeholder}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            />
+            <input type="text" value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
             <button onClick={handleAdd}>+</button>
         </span>
     );

@@ -3,11 +3,14 @@ import { contextBridge, ipcRenderer } from 'electron';
 console.log('✅ Preload script loaded');
 
 try {
+  // システム言語をグローバル変数として公開（i18n自動検出用）
+  contextBridge.exposeInMainWorld('__systemLocale__', navigator.language || 'ja');
+
   contextBridge.exposeInMainWorld('electron', {
     // コメント送信（スパチャフラグ対応）
-    sendComment: (text: string, isSuperChat: boolean = false, username: string = 'Guest') => {
+    sendComment: (text: string, isSuperChat: boolean = false, username: string = 'Guest', userLogoUrl?: string) => {
       console.log(`📤 Sending comment via IPC: [${username}] ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
-      return ipcRenderer.invoke('send-comment', text, isSuperChat, username);
+      return ipcRenderer.invoke('send-comment', text, isSuperChat, username, userLogoUrl);
     },
 
     // 設定の取得
@@ -32,9 +35,9 @@ try {
 
     // ヘルスステータスの受信（メインプロセスからの定期通知）
     onHealthStatus: (callback: (status: any) => void) => {
-      ipcRenderer.on('health-status', (_event, status) => {
-        callback(status);
-      });
+      const handler = (_event: any, status: any) => callback(status);
+      ipcRenderer.on('health-status', handler);
+      return () => { ipcRenderer.removeListener('health-status', handler); };
     },
 
     // ログ取得
@@ -47,11 +50,19 @@ try {
       return ipcRenderer.invoke('clear-logs');
     },
 
+    // コメント処理の一時停止/再開
+    setProcessingPaused: (paused: boolean) => {
+      return ipcRenderer.invoke('set-processing-paused', paused);
+    },
+    getProcessingPaused: () => {
+      return ipcRenderer.invoke('get-processing-paused');
+    },
+
     // ログエントリのリアルタイム受信
     onLogEntry: (callback: (entry: any) => void) => {
-      ipcRenderer.on('log-entry', (_event, entry) => {
-        callback(entry);
-      });
+      const handler = (_event: any, entry: any) => callback(entry);
+      ipcRenderer.on('log-entry', handler);
+      return () => { ipcRenderer.removeListener('log-entry', handler); };
     },
 
     // ウォームアップ状態の取得
@@ -61,9 +72,9 @@ try {
 
     // ウォームアップ状態のリアルタイム受信
     onWarmupStatus: (callback: (status: string) => void) => {
-      ipcRenderer.on('ai-warmup-status', (_event, status) => {
-        callback(status);
-      });
+      const handler = (_event: any, status: string) => callback(status);
+      ipcRenderer.on('ai-warmup-status', handler);
+      return () => { ipcRenderer.removeListener('ai-warmup-status', handler); };
     },
 
     // フィルター設定の取得
@@ -114,6 +125,33 @@ try {
 
     saveOverlaySettings: (settings: any) => {
       return ipcRenderer.invoke('save-overlay-settings', settings);
+    },
+
+    // === オーバーレイプリセット管理 ===
+    getOverlayPresets: () => {
+      return ipcRenderer.invoke('get-overlay-presets');
+    },
+    saveOverlayPreset: (name: string, settings: any) => {
+      return ipcRenderer.invoke('save-overlay-preset', name, settings);
+    },
+    deleteOverlayPreset: (name: string) => {
+      return ipcRenderer.invoke('delete-overlay-preset', name);
+    },
+    loadOverlayPreset: (name: string) => {
+      return ipcRenderer.invoke('load-overlay-preset', name);
+    },
+    exportOverlayPreset: (settings: any, defaultName: string) => {
+      return ipcRenderer.invoke('export-overlay-preset', settings, defaultName);
+    },
+    importOverlayPreset: () => {
+      return ipcRenderer.invoke('import-overlay-preset');
+    },
+
+    // === 音声再生イベント（YouTube等の外部ソースからの自動再生用） ===
+    onPlayAudio: (callback: (audioData: string) => void) => {
+      const handler = (_event: any, audioData: string) => callback(audioData);
+      ipcRenderer.on('play-audio', handler);
+      return () => { ipcRenderer.removeListener('play-audio', handler); };
     },
   });
   console.log('✅ contextBridge exposed');

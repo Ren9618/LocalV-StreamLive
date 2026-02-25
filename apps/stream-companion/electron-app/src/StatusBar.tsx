@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './StatusBar.css';
+import { useLocale } from './i18n';
 
 interface HealthStatus {
     llm: {
@@ -18,6 +19,9 @@ interface HealthStatus {
         speakers: { name: string; id: number }[];
         error?: string;
     };
+    youtube?: {
+        connected: boolean;
+    };
 }
 
 interface StatusBarProps {
@@ -25,15 +29,15 @@ interface StatusBarProps {
 }
 
 function StatusBar({ health }: StatusBarProps) {
+    const { t } = useLocale();
     const [showGuide, setShowGuide] = useState(false);
 
-    // ヘルスチェック結果がまだない場合
     if (!health) {
         return (
             <div className="status-bar">
                 <div className="status-item checking">
                     <span className="status-dot">⏳</span>
-                    <span>接続確認中...</span>
+                    <span>{t('status.checking')}</span>
                 </div>
             </div>
         );
@@ -49,41 +53,41 @@ function StatusBar({ health }: StatusBarProps) {
                 <div className="guide-overlay" onClick={() => setShowGuide(false)}>
                     <div className="guide-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="guide-header">
-                            <h3>🔧 セットアップガイド</h3>
+                            <h3>{t('guide.title')}</h3>
                             <button className="guide-close" onClick={() => setShowGuide(false)}>✕</button>
                         </div>
 
                         {!health.ollama.connected && (
                             <div className="guide-section">
-                                <h4>🤖 Ollama（AIエンジン）</h4>
+                                <h4>{t('guide.ollamaTitle')}</h4>
                                 <p className="guide-error">{health.ollama.error}</p>
 
                                 <div className="guide-steps">
                                     <div className="guide-step">
                                         <span className="step-num">1</span>
                                         <div>
-                                            <strong>Ollamaをインストール</strong>
+                                            <strong>{t('guide.ollamaStep1')}</strong>
                                             <p>
                                                 <a href="https://ollama.com/download" target="_blank" rel="noreferrer">
                                                     https://ollama.com/download
                                                 </a>
-                                                からダウンロード＆インストール
+                                                {' '}{t('guide.ollamaStep1Desc')}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="guide-step">
                                         <span className="step-num">2</span>
                                         <div>
-                                            <strong>モデルをダウンロード</strong>
-                                            <p>ターミナルで以下を実行：</p>
+                                            <strong>{t('guide.ollamaStep2')}</strong>
+                                            <p>{t('guide.ollamaStep2Desc')}</p>
                                             <code>ollama pull llama3.1</code>
                                         </div>
                                     </div>
                                     <div className="guide-step">
                                         <span className="step-num">3</span>
                                         <div>
-                                            <strong>Ollamaを起動</strong>
-                                            <p>ターミナルで以下を実行：</p>
+                                            <strong>{t('guide.ollamaStep3')}</strong>
+                                            <p>{t('guide.ollamaStep3Desc')}</p>
                                             <code>ollama serve</code>
                                         </div>
                                     </div>
@@ -93,27 +97,27 @@ function StatusBar({ health }: StatusBarProps) {
 
                         {!health.voicevox.connected && (
                             <div className="guide-section">
-                                <h4>🔊 VoiceVox（音声合成エンジン）</h4>
+                                <h4>{t('guide.voicevoxTitle')}</h4>
                                 <p className="guide-error">{health.voicevox.error}</p>
 
                                 <div className="guide-steps">
                                     <div className="guide-step">
                                         <span className="step-num">1</span>
                                         <div>
-                                            <strong>VoiceVoxをインストール</strong>
+                                            <strong>{t('guide.voicevoxStep1')}</strong>
                                             <p>
                                                 <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noreferrer">
                                                     https://voicevox.hiroshiba.jp/
                                                 </a>
-                                                からダウンロード＆インストール
+                                                {' '}{t('guide.voicevoxStep1Desc')}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="guide-step">
                                         <span className="step-num">2</span>
                                         <div>
-                                            <strong>VoiceVoxを起動</strong>
-                                            <p>アプリケーションを開くと自動的にエンジンが起動します（ポート 50021）</p>
+                                            <strong>{t('guide.voicevoxStep2')}</strong>
+                                            <p>{t('guide.voicevoxStep2Desc')}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -125,57 +129,64 @@ function StatusBar({ health }: StatusBarProps) {
 
             {/* ステータスバー */}
             <div className="status-bar">
-                {/* LLM ステータス */}
                 <div className={`status-item ${health.llm.connected ? 'connected' : 'disconnected'}`}>
                     <span className="status-dot">{health.llm.connected ? '🟢' : '🔴'}</span>
                     <span className="status-label">{providerLabel}</span>
                     {health.llm.connected ? (
-                        <span className="status-detail">{health.llm.models.length}モデル</span>
+                        <span className="status-detail">{t('status.models', { count: health.llm.models.length })}</span>
                     ) : (
-                        <span className="status-error">未接続</span>
+                        <span className="status-error">{t('status.noConnection')}</span>
                     )}
                 </div>
 
-                {/* VoiceVox ステータス */}
                 <div className={`status-item ${health.voicevox.connected ? 'connected' : 'disconnected'}`}>
                     <span className="status-dot">{health.voicevox.connected ? '🟢' : '🔴'}</span>
                     <span className="status-label">VoiceVox</span>
                     {health.voicevox.connected ? (
-                        <span className="status-detail">接続済み</span>
+                        <span className="status-detail">{t('status.voicevoxConnected')}</span>
                     ) : (
-                        <span className="status-error">未接続</span>
+                        <span className="status-error">{t('status.noConnection')}</span>
                     )}
                 </div>
 
-                {/* ヘルプボタン（問題がある場合のみ表示） */}
-                {hasIssue && (
-                    <button className="status-help-btn" onClick={() => setShowGuide(true)}>
-                        ❓ セットアップガイド
+                <div className={`status-item ${health.youtube?.connected ? 'connected' : 'disconnected'}`}>
+                    <span className="status-dot">{health.youtube?.connected ? '🟢' : '🔴'}</span>
+                    <span className="status-label">YouTube Live</span>
+                    {health.youtube?.connected ? (
+                        <span className="status-detail">{t('status.ytConnected')}</span>
+                    ) : (
+                        <span className="status-error">{t('status.noConnection')}</span>
+                    )}
+                </div>
+
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {hasIssue && (
+                        <button className="status-help-btn" onClick={() => setShowGuide(true)}>
+                            {t('status.guide')}
+                        </button>
+                    )}
+
+                    <button
+                        className="status-help-btn overlay-copy-btn"
+                        onClick={() => {
+                            const url = 'http://localhost:25252/';
+                            navigator.clipboard.writeText(url);
+                            alert(t('status.urlCopied', { url }));
+                        }}
+                        title={t('status.copyUrl')}
+                    >
+                        {t('status.copyUrl')}
                     </button>
-                )}
 
-                {/* OBSオーバーレイURLコピーボタン */}
-                <button
-                    className="status-help-btn overlay-copy-btn"
-                    onClick={() => {
-                        const url = 'http://localhost:25252/';
-                        navigator.clipboard.writeText(url);
-                        alert('OBSブラウザソース用のURLをコピーしました！\n\n' + url + '\n\n※ カスタマイズ用HTMLはアプリの保存データフォルダ(userData)内の\n「overlay.html」を直接編集できます。');
-                    }}
-                    title="OBSのブラウザソースに設定するURLをコピーします"
-                >
-                    🔗 OBS用URLをコピー
-                </button>
-
-                {/* 寄付リンク */}
-                <a
-                    className="donate-link"
-                    href="https://buymeacoffee.com/ray_9618"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    ☕ 開発を支援する
-                </a>
+                    <a
+                        className="donate-link"
+                        href="https://buymeacoffee.com/ray_9618"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        {t('status.donate')}
+                    </a>
+                </div>
             </div>
         </>
     );

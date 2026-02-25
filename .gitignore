@@ -42,3 +42,6 @@ apps/stream-companion/mock-comments.json
 apps/*/dist/
 apps/*/dist-electron/
 apps/*/release/
+
+# ユーザー固有の設定ファイル
+.mysettings/

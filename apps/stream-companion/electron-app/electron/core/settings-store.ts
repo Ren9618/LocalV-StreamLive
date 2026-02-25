@@ -27,6 +27,8 @@ export interface AppSettings {
     maxQueueSize: number;
     // 短期記憶設定
     memorySize: number; // 保持する会話ペア数
+    // YouTube連携
+    youtubeVideoId?: string;
     // フィルター設定
     blacklist: string[];
     quickReplies: QuickReplyPattern[];

@@ -10,6 +10,7 @@ import { HealthChecker } from './core/health-checker';
 import { CommentFilter } from './core/comment-filter';
 import { ConversationMemory } from './core/conversation-memory';
 import { ViewerMemory } from './core/viewer-memory';
+import { LiveChat } from 'youtube-chat';
 
 // __dirname の代替
 const __filename = fileURLToPath(import.meta.url);
@@ -56,7 +57,9 @@ let warmupStatus: WarmupStatus = 'warming-up';
 interface LogEntry {
   id: number;
   timestamp: string;
-  userComment: string;
+  username: string;       // ← 新規追加
+  userComment: string;    // ピュアなコメント本文のみ
+  userLogoUrl?: string;   // ← 新規追加 (YouTube等のアイコンURL)
   aiReply: string;
   source: 'ai' | 'filter' | 'error';
   processingMs: number;
@@ -81,6 +84,311 @@ function pushLogEntry(entry: LogEntry) {
   });
 }
 
+// === コメント処理キュー（大量投下対策） ===
+interface QueuedComment {
+  text: string;
+  isSuperChat: boolean;
+  username: string;
+  userLogoUrl: string | undefined;
+  startTime: number;
+  source: 'ipc' | 'youtube';
+  resolve?: (value: any) => void;
+  reject?: (reason: any) => void;
+}
+
+const MAX_QUEUE_SIZE = 3; // キューの最大サイズ（これを超えると古いものを破棄）
+let commentQueue: QueuedComment[] = [];
+let isProcessingQueue = false;
+let isProcessingPaused = false; // コメント処理の一時停止フラグ
+
+// キューにコメントを追加（IPC経由 = Promise返却あり、YouTube経由 = fire & forget）
+function enqueueComment(item: QueuedComment): Promise<any> | void {
+  // 一時停止中はコメントをスキップ
+  if (isProcessingPaused) {
+    console.log(`  ⏸ [一時停止] コメントをスキップ: ${item.username}: ${item.text}`);
+    pushLogEntry({
+      id: ++logIdCounter,
+      timestamp: new Date().toISOString(),
+      username: item.username,
+      userComment: item.text,
+      userLogoUrl: item.userLogoUrl,
+      aiReply: '[スキップ] コメント処理が一時停止中です',
+      source: 'filter',
+      processingMs: 0,
+      isSuperChat: item.isSuperChat,
+    });
+    if (item.resolve) item.resolve({ reply: null, audioData: null, filtered: true, filterType: 'paused' });
+    return;
+  }
+
+  if (item.source === 'ipc') {
+    // IPC経由はPromiseで結果を返す必要がある
+    return new Promise((resolve, reject) => {
+      item.resolve = resolve;
+      item.reject = reject;
+      commentQueue.push(item);
+      // キューが溢れたら古い「YouTube」のコメントを優先的に捨てる
+      trimQueue();
+      processQueue();
+    });
+  } else {
+    // YouTube経由はfire & forget
+    commentQueue.push(item);
+    trimQueue();
+    processQueue();
+  }
+}
+
+function trimQueue() {
+  while (commentQueue.length > MAX_QUEUE_SIZE) {
+    // 先頭（最も古い）のYouTubeコメントを探して捨てる
+    const ytIndex = commentQueue.findIndex(q => q.source === 'youtube');
+    if (ytIndex >= 0) {
+      const dropped = commentQueue.splice(ytIndex, 1)[0];
+      console.log(`  ⏭ [キュー] YouTube コメントをスキップ: ${dropped.username}: ${dropped.text}`);
+      // スキップされたコメントのログを残す
+      pushLogEntry({
+        id: ++logIdCounter,
+        timestamp: new Date().toISOString(),
+        username: dropped.username,
+        userComment: dropped.text,
+        userLogoUrl: dropped.userLogoUrl,
+        aiReply: '[スキップ] 処理キューが満杯のためスキップされました',
+        source: 'filter',
+        processingMs: 0,
+        isSuperChat: dropped.isSuperChat,
+      });
+    } else {
+      // YouTubeコメントがなければ末尾（最新）を捨てる
+      break;
+    }
+  }
+}
+
+async function processQueue() {
+  if (isProcessingQueue || commentQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  while (commentQueue.length > 0) {
+    const item = commentQueue.shift()!;
+    try {
+      const result = await processIncomingComment(item.text, item.isSuperChat, item.username, item.userLogoUrl, item.startTime);
+      if (item.resolve) item.resolve(result);
+    } catch (e) {
+      console.error('[キュー] 処理エラー:', e);
+      if (item.reject) item.reject(e);
+    }
+  }
+
+  isProcessingQueue = false;
+}
+
+// === YouTube Live リスナー ===
+let youtubeChat: LiveChat | null = null;
+let isYoutubeConnected = false;
+let youtubeConnectedAt: Date | null = null; // 接続開始時刻（過去ログスキップ用）
+
+function stopYouTubeListener() {
+  if (youtubeChat) {
+    try { youtubeChat.stop(); } catch (e) { }
+    youtubeChat = null;
+    isYoutubeConnected = false;
+  }
+}
+
+async function startYouTubeListener(videoIdOrUrl: string) {
+  stopYouTubeListener();
+  if (!videoIdOrUrl) return;
+
+  // URLからVideoIDを抽出する簡易ロジック
+  let videoId = videoIdOrUrl.trim();
+  try {
+    if (videoIdOrUrl.includes('youtube.com/watch')) {
+      const url = new URL(videoIdOrUrl);
+      videoId = url.searchParams.get('v') || videoId;
+    } else if (videoIdOrUrl.includes('youtube.com/live/')) {
+      // https://www.youtube.com/live/VIDEO_ID 形式
+      const url = new URL(videoIdOrUrl);
+      const parts = url.pathname.split('/live/');
+      if (parts[1]) videoId = parts[1].split('?')[0].split('/')[0];
+    } else if (videoIdOrUrl.includes('youtube.com/live_chat')) {
+      // https://www.youtube.com/live_chat?...&v=VIDEO_ID 形式
+      const url = new URL(videoIdOrUrl);
+      videoId = url.searchParams.get('v') || videoId;
+    } else if (videoIdOrUrl.includes('youtu.be/')) {
+      const url = new URL(videoIdOrUrl);
+      videoId = url.pathname.slice(1);
+    }
+  } catch (e) { }
+
+  console.log(`[YouTube] Extracted Video ID: ${videoId} from input: ${videoIdOrUrl}`);
+
+  try {
+    youtubeChat = new LiveChat({ liveId: videoId });
+
+    youtubeChat.on('start', (liveId) => {
+      console.log(`[YouTube] Connected to Live ID: ${liveId}`);
+      isYoutubeConnected = true;
+      youtubeConnectedAt = new Date(); // 接続時刻を記録
+    });
+
+    youtubeChat.on('error', (err) => {
+      console.error('[YouTube] Error:', err);
+      isYoutubeConnected = false;
+    });
+
+    youtubeChat.on('end', () => {
+      console.log('[YouTube] Live stream ended or disconnected');
+      isYoutubeConnected = false;
+    });
+
+    youtubeChat.on('chat', async (chatItem) => {
+      // 接続前の過去ログをスキップ（再起動時の大量読み込み防止）
+      if (youtubeConnectedAt && chatItem.timestamp < youtubeConnectedAt) {
+        return;
+      }
+
+      const username = chatItem.author.name;
+      const channelId = chatItem.author.channelId;
+      // 絵文字画像などをプレーンテキストに変換
+      const text = chatItem.message.map(m => 'text' in m ? m.text : ('emojiText' in m ? m.emojiText : '')).join('');
+      const userLogoUrl = chatItem.author.thumbnail?.url;
+      const isSuperChat = !!chatItem.superchat;
+
+      console.log(`[YouTube] Comment from [${username}] (ch:${channelId}): ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
+      const startTime = Date.now();
+
+      // キュー経由で処理（大量投下時はスキップされる）
+      enqueueComment({ text, isSuperChat, username, userLogoUrl, startTime, source: 'youtube' });
+    });
+
+    const ok = await youtubeChat.start();
+    if (!ok) {
+      console.error('[YouTube] Failed to start standard fetch, trying fallback...');
+    }
+  } catch (error) {
+    console.error('[YouTube] Init Error:', error);
+    isYoutubeConnected = false;
+  }
+}
+
+// 共通コメント処理関数（IPCおよびYouTubeから利用）
+async function processIncomingComment(text: string, isSuperChat: boolean, username: string, userLogoUrl: string | undefined, startTime: number) {
+  // フィルターで判定
+  const filterResult = commentFilter.applyFilters(text, isSuperChat);
+
+  // ブラックリストにマッチ → 無視
+  if (filterResult.action === 'ignore') {
+    console.log(`  🚫 [フィルター] 無視: ${filterResult.filterType}`);
+    pushLogEntry({
+      id: ++logIdCounter,
+      timestamp: new Date().toISOString(),
+      username,
+      userComment: text,
+      userLogoUrl,
+      aiReply: `[無視] ${filterResult.filterType}`,
+      source: 'filter',
+      processingMs: Date.now() - startTime,
+      isSuperChat,
+    });
+    return { reply: null, audioData: null, filtered: true, filterType: filterResult.filterType };
+  }
+
+  // 定型文 or スパチャ反応 → 即座に返答
+  if (filterResult.action === 'quick-reply' || filterResult.action === 'superchat-reply') {
+    const reply = filterResult.reply!;
+    console.log(`  ⚡ [フィルター] ${filterResult.filterType}: ${reply}`);
+    const processingMs = Date.now() - startTime;
+
+    const audioBuffer = await voice.generateAudio(reply);
+    let audioData = null;
+    if (audioBuffer) {
+      audioData = audioBuffer.toString('base64');
+      // YouTube経由の場合も音声を再生するためレンダラーに送信
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('play-audio', audioData);
+      }
+    }
+
+    pushLogEntry({
+      id: ++logIdCounter,
+      timestamp: new Date().toISOString(),
+      username,
+      userComment: text,
+      userLogoUrl,
+      aiReply: reply,
+      source: 'filter',
+      processingMs,
+      isSuperChat,
+    });
+
+    return { reply, audioData, filtered: true, filterType: filterResult.filterType };
+  }
+
+  // AIに処理させる（トリガー除去済みテキストを使用）
+  const aiText = filterResult.cleanedText || text;
+  try {
+    // 視聴者のコンテキストを取得してシステムプロンプトに結合
+    await viewerMemory.recordComment(username);
+    const viewerContext = await viewerMemory.getContextPrompt(username);
+
+    const augmentedSystemPrompt = viewerContext
+      ? `${currentSettings.systemPrompt}\n\n${viewerContext}`
+      : currentSettings.systemPrompt;
+
+    // 短期記憶を含めたメッセージを構築
+    const messages = conversationMemory.buildMessages(augmentedSystemPrompt, aiText);
+    const reply = await brain.chat(messages);
+    console.log(`[IPC/YT] Bot Reply: ${reply}`);
+    const processingMs = Date.now() - startTime;
+
+    // 会話履歴に追加
+    conversationMemory.addExchange(aiText, reply);
+
+    const audioBuffer = await voice.generateAudio(reply);
+    let audioData = null;
+    if (audioBuffer) {
+      audioData = audioBuffer.toString('base64');
+      // ※注: YouTubeからの自動取得時は、メインプロセス内で音声を鳴らすか、レンダラーに送って鳴らす必要がある
+      // 現状はレンダラーに `play-audio` イベントを送って鳴らすのが安全
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('play-audio', audioData);
+      }
+    }
+
+    pushLogEntry({
+      id: ++logIdCounter,
+      timestamp: new Date().toISOString(),
+      username,
+      userComment: text,
+      userLogoUrl,
+      aiReply: reply,
+      source: 'ai',
+      processingMs,
+      isSuperChat,
+    });
+
+    return { reply, audioData, filtered: false };
+  } catch (error) {
+    const processingMs = Date.now() - startTime;
+    console.error("[IPC/YT] Error:", error);
+
+    pushLogEntry({
+      id: ++logIdCounter,
+      timestamp: new Date().toISOString(),
+      username,
+      userComment: text,
+      userLogoUrl,
+      aiReply: `エラー: ${error}`,
+      source: 'error',
+      processingMs,
+      isSuperChat,
+    });
+
+    throw error;
+  }
+}
+
 // === オーバーレイ用ローカルサーバー ===
 
 // オーバーレイ設定のデフォルト値
@@ -91,6 +399,7 @@ const defaultOverlaySettings = {
   boxRadius: '10px',
   userFontSize: '0.9rem',
   userColor: '#aaa',
+  iconSize: '28px',
   replyFontSize: '1.4rem',
   replyColor: '#fff',
   replyFontWeight: '900',
@@ -127,10 +436,10 @@ function saveOverlaySettings(s: OverlaySettings) {
 function startOverlayServer() {
   const overlayHtmlPath = path.join(app.getPath('userData'), 'overlay.html');
 
-  // v6: スパチャ用のカラー変数を追加
-  if (!fs.existsSync(overlayHtmlPath) || !fs.readFileSync(overlayHtmlPath, 'utf-8').includes('overlay-v6')) {
+  // v9: CSS構文エラー修正、フィルター音声再生修正
+  if (!fs.existsSync(overlayHtmlPath) || !fs.readFileSync(overlayHtmlPath, 'utf-8').includes('overlay-v10')) {
     const defaultHtml = `<!DOCTYPE html>
-<!-- overlay-v6 -->
+<!-- overlay-v10 -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -185,9 +494,12 @@ function startOverlayServer() {
       letter-spacing: 1px;
       text-transform: uppercase;
     }
-    .superchat-box .user {
+    .superchat-box .user-line {
       color: var(--sc-user-color) !important;
       font-weight: bold;
+    }
+    .superchat-box .comment-text {
+      color: var(--sc-user-color) !important;
     }
     .superchat-box .reply {
       color: var(--sc-reply-color) !important;
@@ -214,11 +526,29 @@ function startOverlayServer() {
     @keyframes slideRight { from { transform: translateX(-50px); opacity:0 } to { transform: translateX(0); opacity:1 } }
     @keyframes fadeOnly   { from { opacity:0 } to { opacity:1 } }
     .fade-out { opacity: 0; }
-    .user {
+    
+    .user-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: var(--user-font-size);
       color: var(--user-color);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
+      font-weight: bold;
     }
+    .user-icon {
+      width: var(--icon-size, 28px);
+      height: var(--icon-size, 28px);
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .comment-text {
+      font-size: var(--user-font-size);
+      color: var(--user-color);
+      margin-bottom: 6px;
+      padding-left: 1.8em; /* アイコン分のインデント */
+    }
+
     .reply {
       font-size: var(--reply-font-size);
       font-weight: var(--reply-font-weight);
@@ -249,6 +579,7 @@ function startOverlayServer() {
       root.setProperty('--reply-font-weight', s.replyFontWeight);
       root.setProperty('--fade-duration', s.fadeDuration);
       root.setProperty('--anim-dur', s.animationDuration);
+      root.setProperty('--icon-size', s.iconSize || '28px');
       
       root.setProperty('--sc-box-bg1', s.scBoxBg1 || 'rgba(255, 215, 0, 0.25)');
       root.setProperty('--sc-box-bg2', s.scBoxBg2 || 'rgba(255, 140, 0, 0.2)');
@@ -285,9 +616,44 @@ function startOverlayServer() {
           box.className = 'message-box anim-' + ANIM_TYPE;
         }
 
-        const u = document.createElement('div'); u.className = 'user'; u.textContent = data.userComment;
-        const r = document.createElement('div'); r.className = 'reply'; r.textContent = data.aiReply;
-        box.appendChild(u); box.appendChild(r);
+        // ユーザー行（アイコン＋名前）
+        const userLine = document.createElement('div');
+        userLine.className = 'user-line';
+        
+        const emoji = isSC ? '💰' : '💬';
+        
+        if (data.userLogoUrl) {
+          const img = document.createElement('img');
+          img.className = 'user-icon';
+          img.src = data.userLogoUrl;
+          userLine.appendChild(img);
+        } else {
+          const emojiSpan = document.createElement('span');
+          emojiSpan.textContent = emoji;
+          userLine.appendChild(emojiSpan);
+        }
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = data.username || 'Guest';
+        userLine.appendChild(nameSpan);
+
+        // コメント本文
+        const commentText = document.createElement('div');
+        commentText.className = 'comment-text';
+        commentText.textContent = data.userComment || '';
+
+        // AI返答（スキップ/無視コメントの場合はAI欄を表示しない）
+        const isSkipped = (data.aiReply || '').startsWith('[スキップ]') || (data.aiReply || '').startsWith('[無視]');
+
+        box.appendChild(userLine); 
+        box.appendChild(commentText);
+
+        if (!isSkipped) {
+          const r = document.createElement('div'); 
+          r.className = 'reply'; 
+          r.textContent = '🤖 ' + data.aiReply;
+          box.appendChild(r);
+        }
         container.appendChild(box);
         trimOverflow();
 
@@ -372,10 +738,18 @@ app.whenReady().then(async () => {
 
   // ヘルスチェックの定期監視を開始（10秒間隔）
   healthChecker.startMonitoring((status) => {
+    const fullStatus = { ...status, youtube: { connected: isYoutubeConnected } };
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('health-status', status);
+      mainWindow.webContents.send('health-status', fullStatus);
     }
   }, 10000);
+
+  // DB初期化後にYouTubeリスナーを初期化
+  viewerMemory.init().then(() => {
+    if (currentSettings.youtubeVideoId) {
+      startYouTubeListener(currentSettings.youtubeVideoId);
+    }
+  });
 
   // AIモデルのウォームアップ（バックグラウンドで実行）
   warmupStatus = 'warming-up';
@@ -407,107 +781,41 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+let isQuitting = false;
+app.on('before-quit', async (e) => {
+  if (isQuitting) return;
+
+  // Ollamaの場合のみ終了時にメモリ解放（アンロード）
+  if (currentSettings?.aiProvider === 'ollama' && currentSettings?.aiModel) {
+    e.preventDefault(); // 一旦終了をキャンセル
+    isQuitting = true;
+
+    console.log(`[Main] アプリ終了処理: Ollamaモデル「${currentSettings.aiModel}」のメモリ解放を試みます...`);
+    try {
+      const url = new URL('/api/generate', currentSettings.ollamaUrl || 'http://127.0.0.1:11434').href;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: currentSettings.aiModel,
+          keep_alive: 0
+        })
+      });
+      console.log('[Main] Ollamaモデルのメモリ解放完了');
+    } catch (error) {
+      console.error('[Main] Ollamaモデルのメモリ解放失敗:', error);
+    }
+
+    app.quit(); // 解放後に改めて終了
+  }
+});
+
 // === IPC: コメント送信（フィルター統合済み） ===
-ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean = false, username: string = 'Guest') => {
+ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean = false, username: string = 'Guest', userLogoUrl?: string) => {
   console.log(`[IPC] Received comment from [${username}]: ${text}${isSuperChat ? ' (スパチャ)' : ''}`);
   const startTime = Date.now();
-
-  // フィルターで判定
-  const filterResult = commentFilter.applyFilters(text, isSuperChat);
-
-  // ブラックリストにマッチ → 無視
-  if (filterResult.action === 'ignore') {
-    console.log(`  🚫 [フィルター] 無視: ${filterResult.filterType}`);
-    pushLogEntry({
-      id: ++logIdCounter,
-      timestamp: new Date().toISOString(),
-      userComment: `[${username}] ${text}`,
-      aiReply: `[無視] ${filterResult.filterType}`,
-      source: 'filter',
-      processingMs: Date.now() - startTime,
-      isSuperChat,
-    });
-    return { reply: null, audioData: null, filtered: true, filterType: filterResult.filterType };
-  }
-
-  // 定型文 or スパチャ反応 → 即座に返答
-  if (filterResult.action === 'quick-reply' || filterResult.action === 'superchat-reply') {
-    const reply = filterResult.reply!;
-    console.log(`  ⚡ [フィルター] ${filterResult.filterType}: ${reply}`);
-    const processingMs = Date.now() - startTime;
-
-    const audioBuffer = await voice.generateAudio(reply);
-    let audioData = null;
-    if (audioBuffer) {
-      audioData = audioBuffer.toString('base64');
-    }
-
-    pushLogEntry({
-      id: ++logIdCounter,
-      timestamp: new Date().toISOString(),
-      userComment: `[${username}] ${text}`,
-      aiReply: reply,
-      source: 'filter',
-      processingMs,
-      isSuperChat,
-    });
-
-    return { reply, audioData, filtered: true, filterType: filterResult.filterType };
-  }
-
-  // AIに処理させる（トリガー除去済みテキストを使用）
-  const aiText = filterResult.cleanedText || text;
-  try {
-    // 視聴者のコンテキストを取得してシステムプロンプトに結合
-    await viewerMemory.recordComment(username);
-    const viewerContext = await viewerMemory.getContextPrompt(username);
-
-    const augmentedSystemPrompt = viewerContext
-      ? `${currentSettings.systemPrompt}\n\n${viewerContext}`
-      : currentSettings.systemPrompt;
-
-    // 短期記憶を含めたメッセージを構築
-    const messages = conversationMemory.buildMessages(augmentedSystemPrompt, aiText);
-    const reply = await brain.chat(messages);
-    console.log(`[IPC] Bot Reply: ${reply}`);
-    const processingMs = Date.now() - startTime;
-
-    // 会話履歴に追加
-    conversationMemory.addExchange(aiText, reply);
-
-    const audioBuffer = await voice.generateAudio(reply);
-    let audioData = null;
-    if (audioBuffer) {
-      audioData = audioBuffer.toString('base64');
-    }
-
-    pushLogEntry({
-      id: ++logIdCounter,
-      timestamp: new Date().toISOString(),
-      userComment: `[${username}] ${text}`,
-      aiReply: reply,
-      source: 'ai',
-      processingMs,
-      isSuperChat,
-    });
-
-    return { reply, audioData, filtered: false };
-  } catch (error) {
-    const processingMs = Date.now() - startTime;
-    console.error("[IPC] Error:", error);
-
-    pushLogEntry({
-      id: ++logIdCounter,
-      timestamp: new Date().toISOString(),
-      userComment: `[${username}] ${text}`,
-      aiReply: `エラー: ${error}`,
-      source: 'error',
-      processingMs,
-      isSuperChat,
-    });
-
-    throw error;
-  }
+  // キュー経由で処理（大量連打時も順次処理）
+  return enqueueComment({ text, isSuperChat, username, userLogoUrl, startTime, source: 'ipc' });
 });
 
 // === IPC: 設定 ===
@@ -542,11 +850,20 @@ ipcMain.handle('save-settings', async (_event, newSettings: any) => {
   // 短期記憶のサイズを更新
   conversationMemory.setMaxPairs(currentSettings.memorySize);
 
-  const health = await healthChecker.checkAll();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('health-status', health);
+  // YouTube Live の再接続
+  if (currentSettings.youtubeVideoId) {
+    console.log(`[Settings] YouTube Video ID が設定されました: ${currentSettings.youtubeVideoId}`);
+    startYouTubeListener(currentSettings.youtubeVideoId);
+  } else {
+    stopYouTubeListener();
   }
-  return { settings: currentSettings, health };
+
+  const health = await healthChecker.checkAll();
+  const fullHealth = { ...health, youtube: { connected: isYoutubeConnected } };
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('health-status', fullHealth);
+  }
+  return { settings: currentSettings, health: fullHealth };
 });
 
 // === IPC: フィルター設定 ===
@@ -581,7 +898,7 @@ ipcMain.handle('get-warmup-status', async () => warmupStatus);
 // === IPC: ヘルスチェック ===
 ipcMain.handle('check-health', async () => {
   const status = await healthChecker.checkAll();
-  return status;
+  return { ...status, youtube: { connected: isYoutubeConnected } };
 });
 
 // === IPC: ログ ===
@@ -590,6 +907,17 @@ ipcMain.handle('clear-logs', async () => {
   logs = [];
   logIdCounter = 0;
   return true;
+});
+
+// === IPC: コメント処理の一時停止/再開 ===
+ipcMain.handle('set-processing-paused', async (_event, paused: boolean) => {
+  isProcessingPaused = paused;
+  console.log(`[メイン] コメント処理: ${paused ? '一時停止' : '再開'}`);
+  return isProcessingPaused;
+});
+
+ipcMain.handle('get-processing-paused', async () => {
+  return isProcessingPaused;
 });
 
 // === IPC: プリセット管理 ===
@@ -668,4 +996,84 @@ ipcMain.handle('get-overlay-settings', async () => loadOverlaySettings());
 ipcMain.handle('save-overlay-settings', async (_event, s: any) => {
   saveOverlaySettings({ ...loadOverlaySettings(), ...s });
   return true;
+});
+
+// === IPC: オーバーレイプリセット管理 ===
+const overlayPresetsDir = path.join(app.getPath('userData'), 'overlay-presets');
+if (!fs.existsSync(overlayPresetsDir)) {
+  fs.mkdirSync(overlayPresetsDir, { recursive: true });
+}
+
+// オーバーレイプリセット一覧を取得
+ipcMain.handle('get-overlay-presets', async () => {
+  const files = fs.readdirSync(overlayPresetsDir).filter(f => f.endsWith('.lvso'));
+  return files.map(f => ({
+    name: path.basename(f, '.lvso'),
+    path: path.join(overlayPresetsDir, f),
+  }));
+});
+
+// オーバーレイプリセットを保存（名前とJSON設定を受け取り .lvso ファイルとして保存）
+ipcMain.handle('save-overlay-preset', async (_event, name: string, settings: any) => {
+  const safeName = name.replace(/[<>:"/\\|?*]/g, '_');
+  const filePath = path.join(overlayPresetsDir, `${safeName}.lvso`);
+  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+  return { name: safeName, path: filePath };
+});
+
+// オーバーレイプリセットを削除
+ipcMain.handle('delete-overlay-preset', async (_event, name: string) => {
+  const filePath = path.join(overlayPresetsDir, `${name}.lvso`);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+  return true;
+});
+
+// オーバーレイプリセットを読み込み（名前を指定してJSON設定を返す）
+ipcMain.handle('load-overlay-preset', async (_event, name: string) => {
+  const filePath = path.join(overlayPresetsDir, `${name}.lvso`);
+  if (!fs.existsSync(filePath)) return null;
+  const text = fs.readFileSync(filePath, 'utf-8');
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+});
+
+// オーバーレイプリセットをエクスポート（ファイル保存ダイアログ）
+ipcMain.handle('export-overlay-preset', async (_event, settings: any, defaultName: string) => {
+  const result = await dialog.showSaveDialog({
+    title: 'オーバーレイプリセットをエクスポート',
+    defaultPath: `${defaultName || 'overlay-preset'}.lvso`,
+    filters: [
+      { name: 'LocalV Overlay Preset', extensions: ['lvso'] },
+      { name: 'JSONファイル', extensions: ['json'] },
+    ],
+  });
+  if (result.canceled || !result.filePath) return false;
+  fs.writeFileSync(result.filePath, JSON.stringify(settings, null, 2), 'utf-8');
+  return true;
+});
+
+// オーバーレイプリセットをインポート（ファイル選択ダイアログ）
+ipcMain.handle('import-overlay-preset', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'オーバーレイプリセットをインポート',
+    filters: [
+      { name: 'オーバーレイプリセット', extensions: ['lvso', 'json'] },
+      { name: 'すべてのファイル', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const text = fs.readFileSync(result.filePaths[0], 'utf-8');
+  const name = path.basename(result.filePaths[0], path.extname(result.filePaths[0]));
+  try {
+    const settings = JSON.parse(text);
+    return { name, settings };
+  } catch {
+    return null;
+  }
 });
