@@ -37,6 +37,7 @@ out/
 build/
 
 # LocalAI-Suite specific
+docs/
 apps/stream-companion/mock-comments.json
 apps/*/dist/
 apps/*/dist-electron/
