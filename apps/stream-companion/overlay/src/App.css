@@ -1,0 +1,57 @@
+.overlay-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+  padding-bottom: 20px;
+}
+
+.comment-box {
+  background: rgba(0, 0, 0, 0.7); /* 半透明の黒背景 */
+  border-left: 4px solid #00ff88; /* ゲーミングっぽいアクセントカラー */
+  padding: 12px;
+  border-radius: 0 8px 8px 0;
+  color: white;
+  animation: slideIn 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.user-section {
+  font-size: 0.9rem;
+  color: #ddd;
+  margin-bottom: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.user-name {
+  font-weight: bold;
+  color: #00ff88;
+  font-size: 0.8rem;
+}
+
+.ai-section {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.ai-icon {
+  font-size: 1.2rem;
+}
+
+.ai-text {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #ffcc00; /* AIの発言を目立たせる黄色 */
+  line-height: 1.4;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}

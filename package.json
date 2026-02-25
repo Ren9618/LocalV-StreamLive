@@ -1,0 +1,19 @@
+{
+  "name": "local-v-streamlive",
+  "version": "1.0.0",
+  "description": "Monorepo for LocalV-StreamLive",
+  "scripts": {
+    "test:core": "ts-node scripts/test-brain.ts",
+    "test:bot": "ts-node apps/stream-companion/bot.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "undici": "^6.0.0",
+    "ws": "^8.19.0"
+  }
+}

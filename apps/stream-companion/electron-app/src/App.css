@@ -1,0 +1,276 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 0;
+  background-color: #222;
+  color: white;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* === ウォームアップオーバーレイ === */
+.warmup-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 17, 17, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.warmup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.warmup-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #333;
+  border-top-color: #00ff88;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.warmup-text {
+  color: #eee;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.warmup-subtext {
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.warmup-icon {
+  font-size: 2.5rem;
+}
+
+.warmup-failed .warmup-text {
+  color: #ff6b6b;
+}
+
+.warmup-failed .warmup-subtext {
+  color: #999;
+}
+
+/* === タブナビゲーション === */
+.tab-nav {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  padding: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px 20px;
+  background: transparent;
+  color: #888;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.tab-btn:hover {
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn.active {
+  color: #00ff88;
+  border-bottom-color: #00ff88;
+}
+
+/* === タブ内容 === */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+/* === 警告バナー === */
+.warning-banner {
+  padding: 10px 14px;
+  background: rgba(255, 165, 0, 0.1);
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  border-radius: 8px;
+  color: #ffaa33;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+/* === チャットエリア === */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background-color: #1a1a1a;
+  min-height: 300px;
+}
+
+.chat-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.message-box {
+  margin-bottom: 12px;
+  border-bottom: 1px solid #2a2a2a;
+  padding-bottom: 10px;
+}
+
+.message-box:last-child {
+  border-bottom: none;
+}
+
+.user-msg {
+  color: #ccc;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.bot-msg {
+  color: #ffcc00;
+  font-weight: bold;
+  font-size: 1.05rem;
+}
+
+.loading {
+  color: #00ff88;
+  font-size: 0.85rem;
+  padding: 8px 0;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* === 入力エリア === */
+.input-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-area input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background-color: #2a2a2a;
+  color: white;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.input-area input[type="text"]:focus {
+  outline: none;
+  border-color: #00ff88;
+}
+
+.input-area input[type="text"]:disabled {
+  background-color: #1a1a1a;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.input-area button {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9rem;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.input-area button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+.input-area button:disabled {
+  background: #444;
+  color: #888;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* === スパチャトグル === */
+.superchat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.superchat-toggle input[type="checkbox"] {
+  accent-color: #ffcc00;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.superchat-label {
+  font-size: 0.8rem;
+  color: #888;
+  transition: color 0.2s;
+}
+
+.superchat-toggle input:checked+.superchat-label {
+  color: #ffcc00;
+}
+
+/* === メッセージタグ === */
+.msg-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255, 200, 0, 0.15);
+  color: #ffcc33;
+  border: 1px solid rgba(255, 200, 0, 0.25);
+}

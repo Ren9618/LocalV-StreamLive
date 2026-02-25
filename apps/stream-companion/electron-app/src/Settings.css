@@ -1,0 +1,174 @@
+.settings-container {
+  padding: 10px 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+}
+
+/* === セクション === */
+.settings-section {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.settings-section h2 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  color: #00ff88;
+  border-bottom: 1px solid #333;
+  padding-bottom: 8px;
+}
+
+/* === 入力フィールド === */
+.settings-field {
+  margin-bottom: 14px;
+}
+
+.settings-field label {
+  display: block;
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.settings-field input[type="text"],
+.settings-field input[type="number"],
+.settings-field select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.settings-field input:focus,
+.settings-field select:focus,
+.settings-field textarea:focus {
+  outline: none;
+  border-color: #00ff88;
+}
+
+.settings-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 0.85rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+.settings-field select {
+  cursor: pointer;
+}
+
+/* === フィールド補足テキスト === */
+.field-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.field-with-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-with-status input {
+  flex: 1;
+}
+
+.field-warning {
+  font-size: 0.75rem;
+  color: #ff6b6b;
+  white-space: nowrap;
+}
+
+/* === ボタン === */
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn-save {
+  flex: 1;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.95rem;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.btn-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+.btn-save:disabled {
+  background: #555;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-reset {
+  padding: 10px 20px;
+  background: transparent;
+  color: #888;
+  border: 1px solid #555;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-reset:hover {
+  border-color: #888;
+  color: #ccc;
+}
+
+/* === 保存メッセージ === */
+.save-message {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 8px;
+  color: #00ff88;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.save-message.error {
+  background: rgba(255, 107, 107, 0.1);
+  border-color: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+}
+
+/* === ローディング === */
+.settings-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #666;
+  font-size: 0.9rem;
+}

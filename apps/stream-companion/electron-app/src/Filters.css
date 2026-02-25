@@ -1,0 +1,392 @@
+.filters-container {
+    padding: 10px 0;
+    overflow-y: auto;
+    max-height: calc(100vh - 140px);
+}
+
+/* === セクション === */
+.filter-section {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.filter-section h2 {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+    color: #00ff88;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+
+.filter-desc {
+    color: #777;
+    font-size: 0.8rem;
+    margin: 0 0 12px 0;
+}
+
+/* === タグリスト === */
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    min-height: 32px;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.tag-danger {
+    background: rgba(255, 80, 80, 0.15);
+    border: 1px solid rgba(255, 80, 80, 0.3);
+    color: #ff6b6b;
+}
+
+.tag-reply {
+    background: rgba(0, 200, 255, 0.1);
+    border: 1px solid rgba(0, 200, 255, 0.25);
+    color: #66ddff;
+}
+
+.tag-superchat {
+    background: rgba(255, 200, 0, 0.12);
+    border: 1px solid rgba(255, 200, 0, 0.3);
+    color: #ffcc33;
+}
+
+.tag-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 2px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.tag-remove:hover {
+    opacity: 1;
+}
+
+.tag-empty {
+    color: #555;
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+/* === 追加行 === */
+.add-row {
+    display: flex;
+    gap: 8px;
+}
+
+.add-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: #fff;
+    font-size: 0.85rem;
+    transition: border-color 0.2s;
+}
+
+.add-row input:focus {
+    outline: none;
+    border-color: #00ff88;
+}
+
+.btn-add {
+    padding: 8px 16px;
+    background: rgba(0, 255, 136, 0.15);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn-add:hover {
+    background: rgba(0, 255, 136, 0.25);
+}
+
+/* === 定型文パターンカード === */
+.pattern-card {
+    background: #222;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.pattern-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.pattern-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #ddd;
+}
+
+.pattern-regex {
+    font-size: 0.75rem;
+    background: #1a1a1a;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #888;
+    font-family: 'Consolas', 'Monaco', monospace;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-delete-small {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    padding: 2px;
+}
+
+.btn-delete-small:hover {
+    opacity: 1;
+}
+
+.pattern-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+/* === インライン追加入力 === */
+.inline-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.inline-add input {
+    width: 120px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px dashed #555;
+    background: transparent;
+    color: #aaa;
+    font-size: 0.75rem;
+    transition: border-color 0.2s, width 0.2s;
+}
+
+.inline-add input:focus {
+    outline: none;
+    border-color: #00ff88;
+    border-style: solid;
+    width: 160px;
+}
+
+.inline-add button {
+    background: none;
+    border: 1px solid #555;
+    color: #888;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.inline-add button:hover {
+    border-color: #00ff88;
+    color: #00ff88;
+}
+
+/* === パターン追加フォーム === */
+.add-pattern-form {
+    border: 1px dashed #444;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 10px;
+}
+
+.add-pattern-form h3 {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    color: #888;
+    font-weight: 500;
+}
+
+.add-pattern-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.add-pattern-fields input {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: #fff;
+    font-size: 0.85rem;
+    transition: border-color 0.2s;
+}
+
+.add-pattern-fields input:focus {
+    outline: none;
+    border-color: #00ff88;
+}
+
+.add-pattern-fields .btn-add {
+    align-self: flex-end;
+}
+
+/* === 正規表現ヘルプ === */
+.regex-help {
+    margin-top: 12px;
+}
+
+.regex-help summary {
+    font-size: 0.8rem;
+    color: #888;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.regex-help summary:hover {
+    color: #aaa;
+}
+
+.regex-help-content {
+    margin-top: 10px;
+    padding: 12px;
+    background: #1a1a1a;
+    border-radius: 6px;
+    border: 1px solid #333;
+}
+
+.regex-help-content p {
+    margin: 0 0 8px 0;
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+.regex-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+}
+
+.regex-table th {
+    text-align: left;
+    padding: 4px 8px;
+    color: #00ff88;
+    border-bottom: 1px solid #333;
+    font-weight: 600;
+}
+
+.regex-table td {
+    padding: 4px 8px;
+    color: #ccc;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.regex-table code {
+    background: #2a2a2a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #ffcc33;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+}
+
+.regex-examples-title {
+    font-weight: 600;
+    color: #bbb !important;
+}
+
+.regex-examples {
+    margin: 4px 0 0 0;
+    padding-left: 18px;
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+.regex-examples li {
+    margin-bottom: 3px;
+}
+
+.regex-examples code {
+    background: #2a2a2a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #ffcc33;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+}
+
+/* === 保存ボタン === */
+.filter-actions {
+    margin-top: 8px;
+}
+
+.filter-actions .btn-save {
+    width: 100%;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #00ff88, #00cc6a);
+    color: #111;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.95rem;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.filter-actions .btn-save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+}
+
+.filter-actions .btn-save:disabled {
+    background: #555;
+    cursor: wait;
+    transform: none;
+    box-shadow: none;
+}
+
+/* === ローディング === */
+.filters-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #666;
+    font-size: 0.9rem;
+}
