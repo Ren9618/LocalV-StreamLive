@@ -29,6 +29,9 @@ declare global {
       loadPreset: (name: string) => Promise<string | null>;
       exportPrompt: (text: string, defaultName: string) => Promise<boolean>;
       importPrompt: () => Promise<{ name: string, text: string } | null>;
+      // オーバーレイ設定
+      getOverlaySettings: () => Promise<any>;
+      saveOverlaySettings: (settings: any) => Promise<boolean>;
     }
   }
 }

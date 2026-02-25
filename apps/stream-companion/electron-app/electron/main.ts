@@ -81,51 +81,54 @@ function pushLogEntry(entry: LogEntry) {
 }
 
 // === オーバーレイ用ローカルサーバー ===
+
+// オーバーレイ設定のデフォルト値
+const defaultOverlaySettings = {
+  boxBg: 'rgba(0, 0, 0, 0.65)',
+  boxBorderColor: '#4CAF50',
+  boxBorderWidth: '5px',
+  boxRadius: '10px',
+  userFontSize: '0.9rem',
+  userColor: '#aaa',
+  replyFontSize: '1.4rem',
+  replyColor: '#fff',
+  replyFontWeight: '900',
+  animationType: 'slideUp',
+  animationDuration: '0.3s',
+  fadeDuration: '1s',
+  displayDuration: 30000,
+};
+
+type OverlaySettings = typeof defaultOverlaySettings;
+
+// 視線パス
+const overlaySettingsPath = path.join(app.getPath('userData'), 'overlay-settings.json');
+
+function loadOverlaySettings(): OverlaySettings {
+  try {
+    if (fs.existsSync(overlaySettingsPath)) {
+      return { ...defaultOverlaySettings, ...JSON.parse(fs.readFileSync(overlaySettingsPath, 'utf-8')) };
+    }
+  } catch { /* フォールバック */ }
+  return { ...defaultOverlaySettings };
+}
+
+function saveOverlaySettings(s: OverlaySettings) {
+  fs.writeFileSync(overlaySettingsPath, JSON.stringify(s, null, 2), 'utf-8');
+}
+
 function startOverlayServer() {
   const overlayHtmlPath = path.join(app.getPath('userData'), 'overlay.html');
 
-  if (!fs.existsSync(overlayHtmlPath) || !fs.readFileSync(overlayHtmlPath, 'utf-8').includes('overlay-v3')) {
+  // v4: /settings エンドポイントから設定を取得して適用する方式
+  if (!fs.existsSync(overlayHtmlPath) || !fs.readFileSync(overlayHtmlPath, 'utf-8').includes('overlay-v4')) {
     const defaultHtml = `<!DOCTYPE html>
-<!-- overlay-v3 -->
+<!-- overlay-v4 -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <title>Stream Companion Overlay</title>
   <style>
-    /*
-     * ======================================
-     * 🎨 OBSオーバーレイ カスタマイズガイド
-     * ======================================
-     * 以下の :root 内の値を変更するだけで簡単にデザインを変更できます！
-     * ファイルを保存してOBSで「再読み込み」すれば即反映されます。
-     */
-    :root {
-      /* === メッセージボックス === */
-      --box-bg: rgba(0, 0, 0, 0.65);         /* 背景色 */
-      --box-border-color: #4CAF50;            /* 左端のライン色 */
-      --box-border-width: 5px;                /* 左端のライン太さ */
-      --box-radius: 10px;                     /* 角丸 */
-      --box-padding: 12px 20px;               /* 内余白 */
-      --box-margin: 8px;                      /* ボックス間の余白 */
-      --box-max-width: 90%;                   /* 最大幅 */
-
-      /* === ユーザーコメント === */
-      --user-font-size: 0.9rem;
-      --user-color: #aaa;
-
-      /* === AI返答 === */
-      --reply-font-size: 1.4rem;
-      --reply-color: #fff;
-      --reply-font-weight: 900;
-
-      /* === アニメーション === */
-      --fade-duration: 1s;                    /* フェードアウトの時間 */
-      --display-duration: 30000;              /* 表示時間(ms) JSの値なので下の<script>内で変更 */
-      /* 出現アニメーション: slideUp, slideDown, slideLeft, slideRight, fadeOnly */
-      --animation-type: slideUp;              /* 出現時のアニメ */
-      --animation-duration: 0.3s;             /* アニメの速さ */
-    }
-
     body {
       background-color: transparent !important;
       color: white;
@@ -136,124 +139,99 @@ function startOverlayServer() {
       height: 100vh;
       box-sizing: border-box;
     }
-
     #container {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 0; left: 0; right: 0;
       padding: 15px;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
     }
-
     .message-box {
       background: var(--box-bg);
-      padding: var(--box-padding);
+      padding: 12px 20px;
       border-radius: var(--box-radius);
-      max-width: var(--box-max-width);
+      max-width: 90%;
       border-left: var(--box-border-width) solid var(--box-border-color);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
       opacity: 1;
       transition: opacity var(--fade-duration) ease-in-out;
-      margin-bottom: var(--box-margin);
+      margin-bottom: 8px;
     }
-
-    /* === 出現アニメーションのバリエーション === */
-    .anim-slideUp    { animation: slideUp    var(--animation-duration) ease-out; }
-    .anim-slideDown  { animation: slideDown  var(--animation-duration) ease-out; }
-    .anim-slideLeft  { animation: slideLeft  var(--animation-duration) ease-out; }
-    .anim-slideRight { animation: slideRight var(--animation-duration) ease-out; }
-    .anim-fadeOnly   { animation: fadeOnly   var(--animation-duration) ease-out; }
-
-    @keyframes slideUp    { from { transform: translateY(30px);  opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    @keyframes slideDown  { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    @keyframes slideLeft  { from { transform: translateX(50px);  opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @keyframes slideRight { from { transform: translateX(-50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @keyframes fadeOnly   { from { opacity: 0; } to { opacity: 1; } }
-
+    .anim-slideUp    { animation: slideUp    var(--anim-dur) ease-out; }
+    .anim-slideDown  { animation: slideDown  var(--anim-dur) ease-out; }
+    .anim-slideLeft  { animation: slideLeft  var(--anim-dur) ease-out; }
+    .anim-slideRight { animation: slideRight var(--anim-dur) ease-out; }
+    .anim-fadeOnly   { animation: fadeOnly   var(--anim-dur) ease-out; }
+    @keyframes slideUp    { from { transform: translateY(30px);  opacity:0 } to { transform: translateY(0); opacity:1 } }
+    @keyframes slideDown  { from { transform: translateY(-30px); opacity:0 } to { transform: translateY(0); opacity:1 } }
+    @keyframes slideLeft  { from { transform: translateX(50px);  opacity:0 } to { transform: translateX(0); opacity:1 } }
+    @keyframes slideRight { from { transform: translateX(-50px); opacity:0 } to { transform: translateX(0); opacity:1 } }
+    @keyframes fadeOnly   { from { opacity:0 } to { opacity:1 } }
     .fade-out { opacity: 0; }
-
     .user {
       font-size: var(--user-font-size);
       color: var(--user-color);
       margin-bottom: 4px;
     }
-
     .reply {
       font-size: var(--reply-font-size);
       font-weight: var(--reply-font-weight);
       color: var(--reply-color);
       line-height: 1.3;
-      text-shadow:
-        -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
-        0px 2px 4px rgba(0,0,0,0.7);
+      text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.7);
     }
   </style>
 </head>
 <body>
   <div id="container"></div>
-
   <script>
     const container = document.getElementById('container');
+    let DISPLAY_DURATION = 30000;
+    let ANIM_TYPE = 'slideUp';
 
-    // ⬇️ ここで表示時間を変更できます（ミリ秒。 30000 = 30秒）
-    const DISPLAY_DURATION = 30000;
+    // 起動時にサーバーから設定を取得してCSS変数に適用
+    fetch('/settings').then(r => r.json()).then(s => {
+      const root = document.documentElement.style;
+      root.setProperty('--box-bg', s.boxBg);
+      root.setProperty('--box-border-color', s.boxBorderColor);
+      root.setProperty('--box-border-width', s.boxBorderWidth);
+      root.setProperty('--box-radius', s.boxRadius);
+      root.setProperty('--user-font-size', s.userFontSize);
+      root.setProperty('--user-color', s.userColor);
+      root.setProperty('--reply-font-size', s.replyFontSize);
+      root.setProperty('--reply-color', s.replyColor);
+      root.setProperty('--reply-font-weight', s.replyFontWeight);
+      root.setProperty('--fade-duration', s.fadeDuration);
+      root.setProperty('--anim-dur', s.animationDuration);
+      DISPLAY_DURATION = s.displayDuration || 30000;
+      ANIM_TYPE = s.animationType || 'slideUp';
+    }).catch(() => {});
 
-    // CSS変数からアニメーションタイプを取得
-    function getAnimationType() {
-      return getComputedStyle(document.documentElement).getPropertyValue('--animation-type').trim() || 'slideUp';
-    }
-
-    // 画面からはみ出した古いメッセージを削除する
     function trimOverflow() {
-      const viewportHeight = window.innerHeight;
-      while (container.scrollHeight > viewportHeight && container.children.length > 1) {
+      const vh = window.innerHeight;
+      while (container.scrollHeight > vh && container.children.length > 1) {
         container.removeChild(container.firstChild);
       }
     }
 
-    // サーバーにリアルタイム接続
     function connect() {
       const source = new EventSource('/sse');
-
       source.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.status === 'connected') return;
         if (data.source === 'error') return;
-
         const box = document.createElement('div');
-        box.className = 'message-box anim-' + getAnimationType();
-
-        const userDiv = document.createElement('div');
-        userDiv.className = 'user';
-        userDiv.textContent = data.userComment;
-
-        const replyDiv = document.createElement('div');
-        replyDiv.className = 'reply';
-        replyDiv.textContent = data.aiReply;
-
-        box.appendChild(userDiv);
-        box.appendChild(replyDiv);
+        box.className = 'message-box anim-' + ANIM_TYPE;
+        const u = document.createElement('div'); u.className = 'user'; u.textContent = data.userComment;
+        const r = document.createElement('div'); r.className = 'reply'; r.textContent = data.aiReply;
+        box.appendChild(u); box.appendChild(r);
         container.appendChild(box);
-
-        // 画面に収まるよう古いメッセージを削除
         trimOverflow();
-
-        // 指定時間後にフェードアウトして消す
-        setTimeout(() => {
-          box.classList.add('fade-out');
-          setTimeout(() => box.remove(), 1000);
-        }, DISPLAY_DURATION);
+        setTimeout(() => { box.classList.add('fade-out'); setTimeout(() => box.remove(), 1000); }, DISPLAY_DURATION);
       };
-
-      source.onerror = () => {
-        source.close();
-        setTimeout(connect, 3000);
-      };
+      source.onerror = () => { source.close(); setTimeout(connect, 3000); };
     }
-
     connect();
   </script>
 </body>
@@ -262,27 +240,26 @@ function startOverlayServer() {
   }
 
   const server = http.createServer((req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*'); // OBSなどでも開けるように
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (req.url === '/') {
-      // ユーザーデータ領域にあるHTMLファイルを読み込んで返す
       fs.readFile(overlayHtmlPath, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('Error loading overlay.html');
-          return;
-        }
+        if (err) { res.writeHead(500); res.end('Error'); return; }
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(data);
       });
+    } else if (req.url === '/settings') {
+      // オーバーレイ設定をJSONで返す
+      const s = loadOverlaySettings();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(s));
     } else if (req.url === '/sse') {
-      // ログリアルタイム配信用のSSEエンドポイント
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
       });
-      res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`); // 初期接続確認
+      res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
       sseClients.push(res);
       req.on('close', () => {
         const index = sseClients.indexOf(res);
@@ -616,4 +593,11 @@ ipcMain.handle('import-prompt', async () => {
   const text = fs.readFileSync(result.filePaths[0], 'utf-8');
   const name = path.basename(result.filePaths[0], path.extname(result.filePaths[0]));
   return { name, text };
+});
+
+// === IPC: オーバーレイ設定 ===
+ipcMain.handle('get-overlay-settings', async () => loadOverlaySettings());
+ipcMain.handle('save-overlay-settings', async (_event, s: any) => {
+  saveOverlaySettings({ ...loadOverlaySettings(), ...s });
+  return true;
 });

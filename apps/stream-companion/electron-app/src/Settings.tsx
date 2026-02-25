@@ -50,6 +50,9 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
     const [selectedPreset, setSelectedPreset] = useState('');
     const [presetNameInput, setPresetNameInput] = useState('');
     const [showPresetSave, setShowPresetSave] = useState(false);
+    // オーバーレイ設定用ステート
+    const [overlaySettings, setOverlaySettings] = useState<any>(null);
+    const [overlaySaveMsg, setOverlaySaveMsg] = useState('');
 
     // 初回読み込み
     useEffect(() => {
@@ -58,6 +61,8 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
         });
         // プリセット一覧も取得
         refreshPresets();
+        // オーバーレイ設定も取得
+        window.electron.getOverlaySettings().then((s: any) => setOverlaySettings(s));
     }, []);
 
     // オーディオデバイス取得
@@ -338,6 +343,169 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                         />
                     </div>
                 </section>
+
+                {/* === OBSオーバーレイ設定 === */}
+                {overlaySettings && (
+                    <section className="settings-section">
+                        <h2>🎨 OBSオーバーレイ設定</h2>
+                        <span className="field-hint">保存後、OBSでブラウザソースを「再読み込み」すると反映されます</span>
+
+                        <div className="settings-field">
+                            <label>ボックス背景色</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.boxBg}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, boxBg: e.target.value })}
+                                placeholder="rgba(0, 0, 0, 0.65)"
+                            />
+                            <span className="field-hint">例: rgba(0, 0, 0, 0.65), transparent, #333</span>
+                        </div>
+
+                        <div className="settings-field">
+                            <label>ライン色</label>
+                            <div className="overlay-color-row">
+                                <input
+                                    type="color"
+                                    value={overlaySettings.boxBorderColor}
+                                    onChange={(e) => setOverlaySettings({ ...overlaySettings, boxBorderColor: e.target.value })}
+                                />
+                                <input
+                                    type="text"
+                                    value={overlaySettings.boxBorderColor}
+                                    onChange={(e) => setOverlaySettings({ ...overlaySettings, boxBorderColor: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="settings-field">
+                            <label>ライン太さ</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.boxBorderWidth}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, boxBorderWidth: e.target.value })}
+                                placeholder="5px"
+                            />
+                        </div>
+
+                        <div className="settings-field">
+                            <label>角丸</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.boxRadius}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, boxRadius: e.target.value })}
+                                placeholder="10px"
+                            />
+                        </div>
+
+                        <div className="settings-field">
+                            <label>ユーザーコメント 文字サイズ</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.userFontSize}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, userFontSize: e.target.value })}
+                                placeholder="0.9rem"
+                            />
+                        </div>
+
+                        <div className="settings-field">
+                            <label>ユーザーコメント 文字色</label>
+                            <div className="overlay-color-row">
+                                <input
+                                    type="color"
+                                    value={overlaySettings.userColor}
+                                    onChange={(e) => setOverlaySettings({ ...overlaySettings, userColor: e.target.value })}
+                                />
+                                <input
+                                    type="text"
+                                    value={overlaySettings.userColor}
+                                    onChange={(e) => setOverlaySettings({ ...overlaySettings, userColor: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="settings-field">
+                            <label>AI返答 文字サイズ</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.replyFontSize}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, replyFontSize: e.target.value })}
+                                placeholder="1.4rem"
+                            />
+                        </div>
+
+                        <div className="settings-field">
+                            <label>AI返答 文字色</label>
+                            <div className="overlay-color-row">
+                                <input
+                                    type="color"
+                                    value={overlaySettings.replyColor}
+                                    onChange={(e) => setOverlaySettings({ ...overlaySettings, replyColor: e.target.value })}
+                                />
+                                <input
+                                    type="text"
+                                    value={overlaySettings.replyColor}
+                                    onChange={(e) => setOverlaySettings({ ...overlaySettings, replyColor: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="settings-field">
+                            <label>出現アニメーション</label>
+                            <select
+                                value={overlaySettings.animationType}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, animationType: e.target.value })}
+                            >
+                                <option value="slideUp">⬆️ 下から上 (slideUp)</option>
+                                <option value="slideDown">⬇️ 上から下 (slideDown)</option>
+                                <option value="slideLeft">⬅️ 右から左 (slideLeft)</option>
+                                <option value="slideRight">➡️ 左から右 (slideRight)</option>
+                                <option value="fadeOnly">✨ フェードのみ (fadeOnly)</option>
+                            </select>
+                        </div>
+
+                        <div className="settings-field">
+                            <label>アニメーション速度</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.animationDuration}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, animationDuration: e.target.value })}
+                                placeholder="0.3s"
+                            />
+                        </div>
+
+                        <div className="settings-field">
+                            <label>表示時間（秒）</label>
+                            <input
+                                type="number"
+                                value={Math.round(overlaySettings.displayDuration / 1000)}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, displayDuration: Number(e.target.value) * 1000 })}
+                                min={5}
+                                max={300}
+                            />
+                            <span className="field-hint">メッセージが消えるまでの秒数</span>
+                        </div>
+
+                        <div className="settings-field">
+                            <label>フェードアウト時間</label>
+                            <input
+                                type="text"
+                                value={overlaySettings.fadeDuration}
+                                onChange={(e) => setOverlaySettings({ ...overlaySettings, fadeDuration: e.target.value })}
+                                placeholder="1s"
+                            />
+                        </div>
+
+                        <button
+                            className="save-btn"
+                            onClick={async () => {
+                                await window.electron.saveOverlaySettings(overlaySettings);
+                                setOverlaySaveMsg('✅ オーバーレイ設定を保存しました（OBSで再読み込みしてください）');
+                                setTimeout(() => setOverlaySaveMsg(''), 5000);
+                            }}
+                        >💾 オーバーレイ設定を保存</button>
+                        {overlaySaveMsg && <span className="save-message">{overlaySaveMsg}</span>}
+                    </section>
+                )}
 
                 {/* === 音声設定 === */}
                 <section className="settings-section">

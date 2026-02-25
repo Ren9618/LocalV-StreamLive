@@ -106,6 +106,15 @@ try {
     importPrompt: () => {
       return ipcRenderer.invoke('import-prompt');
     },
+
+    // === オーバーレイ設定 ===
+    getOverlaySettings: () => {
+      return ipcRenderer.invoke('get-overlay-settings');
+    },
+
+    saveOverlaySettings: (settings: any) => {
+      return ipcRenderer.invoke('save-overlay-settings', settings);
+    },
   });
   console.log('✅ contextBridge exposed');
 } catch (error) {
