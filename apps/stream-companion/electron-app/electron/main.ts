@@ -84,8 +84,9 @@ function pushLogEntry(entry: LogEntry) {
 function startOverlayServer() {
   const overlayHtmlPath = path.join(app.getPath('userData'), 'overlay.html');
 
-  if (!fs.existsSync(overlayHtmlPath)) {
+  if (!fs.existsSync(overlayHtmlPath) || !fs.readFileSync(overlayHtmlPath, 'utf-8').includes('overlay-v2')) {
     const defaultHtml = `<!DOCTYPE html>
+<!-- overlay-v2 -->
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -96,28 +97,42 @@ function startOverlayServer() {
       background-color: transparent !important; /* OBSで背景を透明にするための設定 */
       color: white;
       margin: 0;
-      padding: 20px;
+      padding: 0;
       overflow: hidden; /* スクロールバーは表示しない */
       font-family: 'Noto Sans JP', sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end; /* 画面下部に表示する */
       height: 100vh;
       box-sizing: border-box;
+    }
+
+    #container {
+      /* メッセージを下から上に積み上げるコンテナ */
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end; /* 下寄せ */
     }
 
     .message-box {
       /* AIの返答ボックスのスタイル */
       background: rgba(0, 0, 0, 0.65); /* 半透明の黒背景 */
-      padding: 15px 25px;
-      border-radius: 12px;           /* 丸角 */
-      display: inline-block;
-      max-width: 80%;
-      border-left: 6px solid #4CAF50; /* 左端の緑色の線 */
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      padding: 12px 20px;
+      border-radius: 10px;           /* 丸角 */
+      max-width: 90%;
+      border-left: 5px solid #4CAF50; /* 左端の緑色の線 */
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
       opacity: 1;
       transition: opacity 1s ease-in-out; /* 1秒かけてフェード効果 */
-      margin-bottom: 20px;
+      margin-bottom: 8px;
+      animation: slideIn 0.3s ease-out; /* 出現時のスライドアニメーション */
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
     }
 
     .fade-out {
@@ -126,22 +141,21 @@ function startOverlayServer() {
 
     .user {
       /* ユーザーコメント（上の行）のスタイル */
-      font-size: 1.1rem;
-      color: #ddd;
-      margin-bottom: 8px;
-      font-weight: bold;
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 4px;
     }
 
     .reply {
       /* AI返答（メイン）のスタイル */
-      font-size: 1.8rem;
+      font-size: 1.4rem;
       font-weight: 900;
       color: #fff;
-      line-height: 1.4;
+      line-height: 1.3;
       /* 見やすいように文字に黒い縁取り（アウトライン）を追加 */
       text-shadow: 
-        -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
-        0px 3px 5px rgba(0,0,0,0.8); /* 影 */
+        -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+        0px 2px 4px rgba(0,0,0,0.7); /* 影 */
     }
   </style>
 </head>
@@ -151,6 +165,14 @@ function startOverlayServer() {
   <script>
     const container = document.getElementById('container');
 
+    // 画面からはみ出した古いメッセージを削除する
+    function trimOverflow() {
+      const viewportHeight = window.innerHeight;
+      while (container.scrollHeight > viewportHeight && container.children.length > 1) {
+        container.removeChild(container.firstChild);
+      }
+    }
+
     // サーバーにリアルタイム接続
     function connect() {
       const source = new EventSource('/sse');
@@ -159,9 +181,6 @@ function startOverlayServer() {
         const data = JSON.parse(event.data);
         if (data.status === 'connected') return;
         if (data.source === 'error') return; // エラーは表示しない
-
-        // 過去のメッセージがあったら削除して新しく作る
-        container.innerHTML = '';
 
         const box = document.createElement('div');
         box.className = 'message-box';
@@ -178,11 +197,16 @@ function startOverlayServer() {
         box.appendChild(replyDiv);
         container.appendChild(box);
 
-        // 10秒表示したあと、フェードアウトして消す
+        // 画面に収まるよう古いメッセージを削除
+        trimOverflow();
+
+        // 30秒経ったらフェードアウトして消す
         setTimeout(() => {
           box.classList.add('fade-out');
-          setTimeout(() => box.remove(), 1000);
-        }, 10000);
+          setTimeout(() => {
+            box.remove();
+          }, 1000);
+        }, 30000);
       };
 
       source.onerror = (err) => {
