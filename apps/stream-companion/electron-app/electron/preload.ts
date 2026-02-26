@@ -58,6 +58,11 @@ try {
       return ipcRenderer.invoke('get-processing-paused');
     },
 
+    // AIウォームアップ再試行
+    retryWarmup: () => {
+      return ipcRenderer.invoke('retry-warmup');
+    },
+
     // ログエントリのリアルタイム受信
     onLogEntry: (callback: (entry: any) => void) => {
       const handler = (_event: any, entry: any) => callback(entry);

@@ -19,6 +19,11 @@ interface HealthStatus {
         speakers: { name: string; id: number }[];
         error?: string;
     };
+    voiceger?: {
+        connected: boolean;
+        error?: string;
+    };
+    ttsEngine?: 'voicevox' | 'voiceger';
     youtube?: {
         connected: boolean;
     };
@@ -43,7 +48,6 @@ function StatusBar({ health }: StatusBarProps) {
         );
     }
 
-    const hasIssue = !health.llm.connected || !health.voicevox.connected;
     const providerLabel = health.llm.provider === 'ollama' ? 'Ollama' : 'LLM API';
 
     return (
@@ -57,48 +61,87 @@ function StatusBar({ health }: StatusBarProps) {
                             <button className="guide-close" onClick={() => setShowGuide(false)}>✕</button>
                         </div>
 
-                        {!health.ollama.connected && (
-                            <div className="guide-section">
-                                <h4>{t('guide.ollamaTitle')}</h4>
-                                <p className="guide-error">{health.ollama.error}</p>
+                        {/* クラウドLLM（OpenAI互換 API）セットアップ */}
+                        <div className="guide-section">
+                            <h4>{t('guide.cloudTitle')}</h4>
+                            <p className="guide-cloud-intro">{t('guide.cloudIntro')}</p>
 
-                                <div className="guide-steps">
-                                    <div className="guide-step">
-                                        <span className="step-num">1</span>
-                                        <div>
-                                            <strong>{t('guide.ollamaStep1')}</strong>
-                                            <p>
-                                                <a href="https://ollama.com/download" target="_blank" rel="noreferrer">
-                                                    https://ollama.com/download
-                                                </a>
-                                                {' '}{t('guide.ollamaStep1Desc')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="guide-step">
-                                        <span className="step-num">2</span>
-                                        <div>
-                                            <strong>{t('guide.ollamaStep2')}</strong>
-                                            <p>{t('guide.ollamaStep2Desc')}</p>
-                                            <code>ollama pull llama3.1</code>
-                                        </div>
-                                    </div>
-                                    <div className="guide-step">
-                                        <span className="step-num">3</span>
-                                        <div>
-                                            <strong>{t('guide.ollamaStep3')}</strong>
-                                            <p>{t('guide.ollamaStep3Desc')}</p>
-                                            <code>ollama serve</code>
+                            <div className="guide-steps">
+                                <div className="guide-step">
+                                    <span className="step-num">1</span>
+                                    <div>
+                                        <strong>{t('guide.cloudStep1')}</strong>
+                                        <p>{t('guide.cloudStep1Desc')}</p>
+                                        <div className="guide-provider-list">
+                                            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">OpenAI</a>
+                                            <span> / </span>
+                                            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Google Gemini</a>
+                                            <span> / </span>
+                                            <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer">Anthropic Claude</a>
                                         </div>
                                     </div>
                                 </div>
+                                <div className="guide-step">
+                                    <span className="step-num">2</span>
+                                    <div>
+                                        <strong>{t('guide.cloudStep2')}</strong>
+                                        <p>{t('guide.cloudStep2Desc')}</p>
+                                    </div>
+                                </div>
+                                <div className="guide-step">
+                                    <span className="step-num">3</span>
+                                    <div>
+                                        <strong>{t('guide.cloudStep3')}</strong>
+                                        <p>{t('guide.cloudStep3Desc')}</p>
+                                    </div>
+                                </div>
                             </div>
-                        )}
+                        </div>
 
-                        {!health.voicevox.connected && (
+                        {/* Ollama セットアップ */}
+                        <div className="guide-section">
+                            <h4>{t('guide.ollamaTitle')}</h4>
+                            {!health?.ollama.connected && health?.ollama.error && (
+                                <p className="guide-error">{health.ollama.error}</p>
+                            )}
+                            <p className="guide-note">{t('guide.ollamaNote')}</p>
+
+                            <div className="guide-steps">
+                                <div className="guide-step">
+                                    <span className="step-num">1</span>
+                                    <div>
+                                        <strong>{t('guide.ollamaStep1')}</strong>
+                                        <p>
+                                            <a href="https://ollama.com/download" target="_blank" rel="noreferrer">
+                                                https://ollama.com/download
+                                            </a>
+                                            {' '}{t('guide.ollamaStep1Desc')}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="guide-step">
+                                    <span className="step-num">2</span>
+                                    <div>
+                                        <strong>{t('guide.ollamaStep2')}</strong>
+                                        <p>{t('guide.ollamaStep2Desc')}</p>
+                                        <code>ollama pull llama3.1</code>
+                                    </div>
+                                </div>
+                                <div className="guide-step">
+                                    <span className="step-num">3</span>
+                                    <div>
+                                        <strong>{t('guide.ollamaStep3')}</strong>
+                                        <p>{t('guide.ollamaStep3Desc')}</p>
+                                        <code>ollama serve</code>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {!health?.voicevox.connected && (
                             <div className="guide-section">
                                 <h4>{t('guide.voicevoxTitle')}</h4>
-                                <p className="guide-error">{health.voicevox.error}</p>
+                                <p className="guide-error">{health?.voicevox.error}</p>
 
                                 <div className="guide-steps">
                                     <div className="guide-step">
@@ -139,15 +182,23 @@ function StatusBar({ health }: StatusBarProps) {
                     )}
                 </div>
 
-                <div className={`status-item ${health.voicevox.connected ? 'connected' : 'disconnected'}`}>
-                    <span className="status-dot">{health.voicevox.connected ? '🟢' : '🔴'}</span>
-                    <span className="status-label">VoiceVox</span>
-                    {health.voicevox.connected ? (
-                        <span className="status-detail">{t('status.voicevoxConnected')}</span>
-                    ) : (
-                        <span className="status-error">{t('status.noConnection')}</span>
-                    )}
-                </div>
+                {/* TTSエンジン（VoiceVox or Voiceger）のステータス */}
+                {(() => {
+                    const isVoiceger = health.ttsEngine === 'voiceger';
+                    const ttsName = isVoiceger ? 'Voiceger' : 'VoiceVox';
+                    const ttsConnected = isVoiceger ? health.voiceger?.connected : health.voicevox.connected;
+                    return (
+                        <div className={`status-item ${ttsConnected ? 'connected' : 'disconnected'}`}>
+                            <span className="status-dot">{ttsConnected ? '🟢' : '🔴'}</span>
+                            <span className="status-label">{ttsName}</span>
+                            {ttsConnected ? (
+                                <span className="status-detail">{t('status.voicevoxConnected')}</span>
+                            ) : (
+                                <span className="status-error">{t('status.noConnection')}</span>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 <div className={`status-item ${health.youtube?.connected ? 'connected' : 'disconnected'}`}>
                     <span className="status-dot">{health.youtube?.connected ? '🟢' : '🔴'}</span>
@@ -160,11 +211,9 @@ function StatusBar({ health }: StatusBarProps) {
                 </div>
 
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {hasIssue && (
-                        <button className="status-help-btn" onClick={() => setShowGuide(true)}>
-                            {t('status.guide')}
-                        </button>
-                    )}
+                    <button className="status-help-btn" onClick={() => setShowGuide(true)}>
+                        {t('status.guide')}
+                    </button>
 
                     <button
                         className="status-help-btn overlay-copy-btn"

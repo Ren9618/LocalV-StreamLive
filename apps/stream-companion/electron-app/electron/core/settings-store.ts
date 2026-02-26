@@ -20,9 +20,14 @@ export interface AppSettings {
     openaiCompatApiKey: string;
     systemPrompt: string;
     // 音声設定
+    ttsEngine: 'voicevox' | 'voiceger';
     voicevoxUrl: string;
     speakerId: number;
+    voicegerUrl: string;
+    voicegerSpeakerId: string; // Voiceger用 話者ID
     audioOutputDeviceId: string; // オーディオ出力デバイスID
+    voicevoxMultiLang: boolean; // VoiceVox用 多言語応答
+    voicegerMultiLang: boolean; // Voiceger用 多言語応答
     // キュー設定
     maxQueueSize: number;
     // 短期記憶設定
@@ -71,9 +76,14 @@ function getDefaults(): AppSettings {
         openaiCompatUrl: '',
         openaiCompatApiKey: '',
         systemPrompt: DEFAULT_SYSTEM_PROMPT,
+        ttsEngine: 'voicevox',
         voicevoxUrl: 'http://127.0.0.1:50021',
         speakerId: 3,
+        voicegerUrl: 'http://127.0.0.1:8000',
+        voicegerSpeakerId: '01_ref_emoNormal026.wav',
         audioOutputDeviceId: '', // デフォルトデバイス
+        voicevoxMultiLang: false,
+        voicegerMultiLang: true,
         maxQueueSize: 3,
         memorySize: 10,
         // デフォルトのフィルター設定（bot.tsの既存パターンを移植）

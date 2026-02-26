@@ -10,7 +10,7 @@ interface LogEntry {
     userComment: string;
     userLogoUrl?: string;
     aiReply: string;
-    source: 'ai' | 'filter' | 'error';
+    source: 'ai' | 'filter' | 'error' | 'debug';
     processingMs: number;
     isSuperChat?: boolean;
 }
@@ -19,6 +19,7 @@ function LogViewer() {
     const { t } = useLocale();
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [filter, setFilter] = useState<'all' | 'ai' | 'filter' | 'error'>('all');
+    const [showDebug, setShowDebug] = useState(false);
     const logEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -40,9 +41,11 @@ function LogViewer() {
         setLogs([]);
     };
 
-    const filteredLogs = filter === 'all'
-        ? logs
-        : logs.filter(log => log.source === filter);
+    const filteredLogs = logs.filter(log => {
+        if (!showDebug && log.source === 'debug') return false;
+        if (filter === 'all') return true;
+        return log.source === filter;
+    });
 
     const formatTime = (isoString: string) => {
         const d = new Date(isoString);
@@ -54,6 +57,7 @@ function LogViewer() {
             case 'ai': return { text: t('log.badgeAi'), className: 'badge-ai' };
             case 'filter': return { text: t('log.badgeFilter'), className: 'badge-filter' };
             case 'error': return { text: t('log.badgeError'), className: 'badge-error' };
+            case 'debug': return { text: t('log.badgeDebug'), className: 'badge-debug' };
         }
     };
 
@@ -87,9 +91,19 @@ function LogViewer() {
                         {t('log.error')} ({logs.filter(l => l.source === 'error').length})
                     </button>
                 </div>
-                <button className="log-clear-btn" onClick={handleClear}>
-                    {t('log.clear')}
-                </button>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <label className="log-debug-toggle">
+                        <input
+                            type="checkbox"
+                            checked={showDebug}
+                            onChange={(e) => setShowDebug(e.target.checked)}
+                        />
+                        {t('log.showDebug')}
+                    </label>
+                    <button className="log-clear-btn" onClick={handleClear}>
+                        {t('log.clear')}
+                    </button>
+                </div>
             </div>
 
             {/* ログ一覧 */}
@@ -117,7 +131,9 @@ function LogViewer() {
                                     <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{log.username}</span>
                                     {log.userComment}
                                 </div>
-                                <div className="log-reply">🤖 {log.aiReply}</div>
+                                {log.source !== 'debug' && (
+                                    <div className="log-reply">🤖 {log.aiReply}</div>
+                                )}
                             </div>
                         );
                     })

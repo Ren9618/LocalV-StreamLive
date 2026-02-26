@@ -67,6 +67,73 @@
   color: #999;
 }
 
+.warmup-error-code {
+  color: #ff9800;
+  font-size: 0.85rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  background: rgba(255, 152, 0, 0.1);
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+}
+
+.warmup-error-detail {
+  color: #888;
+  font-size: 0.75rem;
+  max-width: 400px;
+  text-align: center;
+  word-break: break-word;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.warmup-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.warmup-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.warmup-btn:hover {
+  transform: translateY(-1px);
+}
+
+.warmup-btn-primary {
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  color: #111;
+  box-shadow: 0 2px 8px rgba(0, 255, 136, 0.25);
+}
+
+.warmup-btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(0, 255, 136, 0.4);
+}
+
+.warmup-btn-secondary {
+  background: #333;
+  color: #ccc;
+  border: 1px solid #555;
+}
+
+.warmup-btn-secondary:hover {
+  background: #444;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.08);
+}
+
+.warmup-skip-hint {
+  color: #666;
+  font-size: 0.75rem;
+  text-align: center;
+  max-width: 350px;
+}
+
 /* === タブナビゲーション === */
 .tab-nav {
   display: flex;
@@ -275,4 +342,69 @@
   background: rgba(255, 200, 0, 0.15);
   color: #ffcc33;
   border: 1px solid rgba(255, 200, 0, 0.25);
+}
+
+/* === VoiceVox未接続通知 === */
+.voicevox-warning-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 17, 17, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.voicevox-warning-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.voicevox-warning-icon {
+  font-size: 2.5rem;
+}
+
+.voicevox-warning-title {
+  color: #ff9800;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.voicevox-warning-desc {
+  color: #999;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.voicevox-warning-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.voicevox-warning-actions button {
+  flex: 1;
+}
+
+.voicevox-no-notify {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  font-size: 0.78rem;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.voicevox-no-notify input[type="checkbox"] {
+  accent-color: #ff9800;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }

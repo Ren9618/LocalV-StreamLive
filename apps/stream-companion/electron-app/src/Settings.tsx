@@ -11,11 +11,16 @@ interface AppSettings {
     openaiCompatUrl: string;
     openaiCompatApiKey: string;
     systemPrompt: string;
+    ttsEngine: 'voicevox' | 'voiceger';
     voicevoxUrl: string;
     speakerId: number;
+    voicegerUrl: string;
+    voicegerSpeakerId: string;
     maxQueueSize: number;
     memorySize: number;
     audioOutputDeviceId: string;
+    voicevoxMultiLang: boolean;
+    voicegerMultiLang: boolean;
     youtubeVideoId: string;
 }
 
@@ -36,6 +41,12 @@ interface HealthStatus {
         speakers: { name: string; id: number }[];
         error?: string;
     };
+    voiceger?: {
+        connected: boolean;
+        speakers: { id: string; name: string }[];
+        error?: string;
+    };
+    ttsEngine?: 'voicevox' | 'voiceger';
     youtube?: {
         connected: boolean;
     };
@@ -760,42 +771,138 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                             <h2>{t('settings.audio.title')}</h2>
 
                             <div className="settings-field">
-                                <label>{t('settings.audio.voicevoxUrl')}</label>
-                                <input
-                                    type="text"
-                                    value={settings.voicevoxUrl}
-                                    onChange={(e) => handleChange('voicevoxUrl', e.target.value)}
-                                    placeholder="http://127.0.0.1:50021"
-                                />
+                                <label>TTSエンジン</label>
+                                <select
+                                    value={settings.ttsEngine}
+                                    onChange={(e) => handleChange('ttsEngine', e.target.value)}
+                                >
+                                    <option value="voicevox">VoiceVox (ずんだもん等)</option>
+                                    <option value="voiceger">Voiceger (GPT-SoVITS + RVC)</option>
+                                </select>
                             </div>
 
-                            <div className="settings-field">
-                                <label>{t('settings.audio.speaker')}</label>
-                                {health?.voicevox.connected && health.voicevox.speakers.length > 0 ? (
-                                    <select
-                                        value={settings.speakerId}
-                                        onChange={(e) => handleChange('speakerId', Number(e.target.value))}
-                                    >
-                                        {health.voicevox.speakers.map((speaker) => (
-                                            <option key={speaker.id} value={speaker.id}>
-                                                {speaker.name} (ID: {speaker.id})
-                                            </option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div className="field-with-status">
+                            {settings.ttsEngine === 'voicevox' && (
+                                <>
+                                    <div className="settings-field">
+                                        <label>{t('settings.audio.voicevoxUrl')}</label>
                                         <input
-                                            type="number"
-                                            value={settings.speakerId}
-                                            onChange={(e) => handleChange('speakerId', Number(e.target.value))}
-                                            min={0}
+                                            type="text"
+                                            value={settings.voicevoxUrl}
+                                            onChange={(e) => handleChange('voicevoxUrl', e.target.value)}
+                                            placeholder="http://127.0.0.1:50021"
                                         />
-                                        {!health?.voicevox.connected && (
-                                            <span className="field-warning">{t('settings.audio.voicevoxNotConnected')}</span>
+                                    </div>
+
+                                    <div className="settings-field">
+                                        <label>{t('settings.audio.speaker')}</label>
+                                        {health?.voicevox.connected && health.voicevox.speakers.length > 0 ? (
+                                            <select
+                                                value={settings.speakerId}
+                                                onChange={(e) => handleChange('speakerId', Number(e.target.value))}
+                                            >
+                                                {health.voicevox.speakers.map((speaker) => (
+                                                    <option key={speaker.id} value={speaker.id}>
+                                                        {speaker.name} (ID: {speaker.id})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <div className="field-with-status">
+                                                <input
+                                                    type="number"
+                                                    value={settings.speakerId}
+                                                    onChange={(e) => handleChange('speakerId', Number(e.target.value))}
+                                                    min={0}
+                                                />
+                                                {!health?.voicevox.connected && (
+                                                    <span className="field-warning">{t('settings.audio.voicevoxNotConnected')}</span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
-                                )}
-                            </div>
+
+                                    <div className="settings-field settings-checkbox-field">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.voicevoxMultiLang ?? false}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    if (checked) {
+                                                        if (window.confirm(t('settings.audio.voicevoxMultiLangWarn'))) {
+                                                            handleChange('voicevoxMultiLang', 1);
+                                                        }
+                                                    } else {
+                                                        handleChange('voicevoxMultiLang', 0);
+                                                    }
+                                                }}
+                                            />
+                                            {t('settings.audio.multiLang')}
+                                        </label>
+                                        <span className="field-hint">{t('settings.audio.multiLangHint')}</span>
+                                    </div>
+                                </>
+                            )}
+
+                            {settings.ttsEngine === 'voiceger' && (
+                                <>
+                                    <div className="settings-field">
+                                        <label>Voiceger URL</label>
+                                        <div className="field-with-status">
+                                            <input
+                                                type="text"
+                                                value={settings.voicegerUrl}
+                                                onChange={(e) => handleChange('voicegerUrl', e.target.value)}
+                                                placeholder="http://127.0.0.1:8000"
+                                            />
+                                            {!health?.voiceger?.connected && (
+                                                <span className="field-warning">⚠ Voiceger未接続</span>
+                                            )}
+                                        </div>
+                                        <span className="field-hint">Voiceger APIサーバーのURLを入力してください。</span>
+                                    </div>
+
+                                    <div className="settings-field">
+                                        <label>{t('settings.audio.voicegerSpeaker')}</label>
+                                        {health?.voiceger?.connected && Array.isArray(health.voiceger.speakers) && health.voiceger.speakers.length > 0 ? (
+                                            <select
+                                                value={settings.voicegerSpeakerId}
+                                                onChange={(e) => handleChange('voicegerSpeakerId', e.target.value)}
+                                            >
+                                                {health.voiceger.speakers.map((speaker) => (
+                                                    <option key={speaker.id} value={speaker.id}>
+                                                        {speaker.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <div className="field-with-status">
+                                                <input
+                                                    type="text"
+                                                    value={settings.voicegerSpeakerId}
+                                                    onChange={(e) => handleChange('voicegerSpeakerId', e.target.value)}
+                                                    placeholder="01_ref_emoNormal026.wav"
+                                                />
+                                                {!health?.voiceger?.connected && (
+                                                    <span className="field-warning">{t('settings.audio.voicegerNotConnected')}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="settings-field settings-checkbox-field">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.voicegerMultiLang ?? false}
+                                                onChange={(e) => handleChange('voicegerMultiLang', e.target.checked ? 1 : 0)}
+                                            />
+                                            {t('settings.audio.multiLang')}
+                                        </label>
+                                        <span className="field-hint">{t('settings.audio.multiLangHint')}</span>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="settings-field">
                                 <label>{t('settings.audio.outputDevice')}</label>

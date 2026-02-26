@@ -24,6 +24,7 @@ declare global {
       onLogEntry: (callback: (entry: any) => void) => () => void;
       getWarmupStatus: () => Promise<string>;
       onWarmupStatus: (callback: (status: string) => void) => () => void;
+      retryWarmup: () => Promise<void>;
       getFilters: () => Promise<any>;
       saveFilters: (filters: any) => Promise<boolean>;
       // プリセット管理
@@ -59,17 +60,27 @@ interface HealthStatus {
     connected: boolean;
     models: string[];
     error?: string;
+    errorCode?: string;
   };
   ollama: {
     connected: boolean;
     models: string[];
     error?: string;
+    errorCode?: string;
   };
   voicevox: {
     connected: boolean;
     speakers: { name: string; id: number }[];
     error?: string;
+    errorCode?: string;
   };
+  voiceger?: {
+    connected: boolean;
+    speakers: { id: string; name: string }[];
+    error?: string;
+    errorCode?: string;
+  };
+  ttsEngine?: 'voicevox' | 'voiceger';
 }
 
 function App() {
@@ -81,6 +92,15 @@ function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [isSuperChatTest, setIsSuperChatTest] = useState(false);
   const [warmupStatus, setWarmupStatus] = useState<'warming-up' | 'ready' | 'failed'>('warming-up');
+  const [warmupErrorCode, setWarmupErrorCode] = useState<string | undefined>();
+  const [warmupErrorMessage, setWarmupErrorMessage] = useState<string | undefined>();
+  const [warmupDismissed, setWarmupDismissed] = useState(false);
+  const [voicevoxDismissed, setVoicevoxDismissed] = useState(() => {
+    return localStorage.getItem('voicevox-notify-dismissed') === 'true';
+  });
+  const [voicegerDismissed, setVoicegerDismissed] = useState(() => {
+    return localStorage.getItem('voiceger-notify-dismissed') === 'true';
+  });
   const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
   const chatAreaRef = useRef<HTMLDivElement>(null);
   const { t } = useLocale();
@@ -116,11 +136,24 @@ function App() {
 
   // ウォームアップ状態の購読
   useEffect(() => {
-    window.electron.getWarmupStatus().then((status) => {
-      setWarmupStatus(status as any);
+    window.electron.getWarmupStatus().then((data: any) => {
+      if (typeof data === 'object' && data !== null) {
+        setWarmupStatus(data.status);
+        setWarmupErrorCode(data.errorCode);
+        setWarmupErrorMessage(data.errorMessage);
+      } else {
+        // 後方互換: 文字列のみの場合
+        setWarmupStatus(data as any);
+      }
     });
-    const cleanup = window.electron.onWarmupStatus((status) => {
-      setWarmupStatus(status as any);
+    const cleanup = window.electron.onWarmupStatus((data: any) => {
+      if (typeof data === 'object' && data !== null) {
+        setWarmupStatus(data.status);
+        setWarmupErrorCode(data.errorCode);
+        setWarmupErrorMessage(data.errorMessage);
+      } else {
+        setWarmupStatus(data as any);
+      }
     });
     return cleanup;
   }, []);
@@ -144,8 +177,21 @@ function App() {
     return cleanup;
   }, []);
 
-  // LLMと音声サービスが接続されているか
-  const isReady = health?.llm.connected && health?.voicevox.connected;
+  // LLMと音声サービスが接続されているか（TTSエンジンに応じて判定）
+  const ttsConnected = health?.ttsEngine === 'voiceger'
+    ? health?.voiceger?.connected
+    : health?.voicevox?.connected;
+  const isReady = health?.llm.connected && ttsConnected;
+
+  // VoiceVox未接続の通知を表示するか（VoiceVoxがTTSエンジンの場合のみ）
+  const showVoicevoxWarning = health && health.ttsEngine === 'voicevox'
+    && !health.voicevox.connected && !voicevoxDismissed
+    && (warmupDismissed || warmupStatus === 'ready');
+
+  // Voiceger未接続の通知を表示するか（VoicegerがTTSエンジンの場合のみ）
+  const showVoicegerWarning = health && health.ttsEngine === 'voiceger'
+    && !health.voiceger?.connected && !voicegerDismissed
+    && (warmupDismissed || warmupStatus === 'ready');
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
@@ -192,7 +238,7 @@ function App() {
   return (
     <div className="container">
       {/* === AIウォームアップオーバーレイ === */}
-      {warmupStatus === 'warming-up' && (
+      {warmupStatus === 'warming-up' && !warmupDismissed && (
         <div className="warmup-overlay">
           <div className="warmup-content">
             <div className="warmup-spinner"></div>
@@ -201,15 +247,140 @@ function App() {
           </div>
         </div>
       )}
-      {warmupStatus === 'failed' && (
+      {warmupStatus === 'failed' && !warmupDismissed && (
         <div className="warmup-overlay warmup-failed">
           <div className="warmup-content">
             <div className="warmup-icon">⚠️</div>
             <div className="warmup-text">{t('warmup.failed')}</div>
+            {warmupErrorCode && (
+              <div className="warmup-error-code">
+                {t('warmup.errorCode')}: {warmupErrorCode}
+              </div>
+            )}
+            {warmupErrorMessage && (
+              <div className="warmup-error-detail">{warmupErrorMessage}</div>
+            )}
             <div className="warmup-subtext">{t('warmup.failedSub')}</div>
+            <div className="warmup-actions">
+              <button
+                className="warmup-btn warmup-btn-primary"
+                onClick={() => {
+                  window.electron.retryWarmup();
+                }}
+              >
+                {t('warmup.retry')}
+              </button>
+              <button
+                className="warmup-btn warmup-btn-secondary"
+                onClick={() => {
+                  setWarmupDismissed(true);
+                  setActiveTab('settings');
+                }}
+              >
+                {t('warmup.openSettings')}
+              </button>
+              <button
+                className="warmup-btn warmup-btn-secondary"
+                onClick={() => setWarmupDismissed(true)}
+              >
+                {t('warmup.skip')}
+              </button>
+            </div>
+            <div className="warmup-skip-hint">{t('warmup.skipHint')}</div>
           </div>
         </div>
       )}
+
+      {/* === VoiceVox未接続通知 === */}
+      {showVoicevoxWarning && (
+        <div className="voicevox-warning-overlay">
+          <div className="voicevox-warning-content">
+            <div className="voicevox-warning-icon">🔇</div>
+            <div className="voicevox-warning-title">{t('voicevox.notRunning')}</div>
+            {health?.voicevox.errorCode && (
+              <div className="warmup-error-code">
+                {t('warmup.errorCode')}: {health.voicevox.errorCode}
+              </div>
+            )}
+            <div className="voicevox-warning-desc">{t('voicevox.notRunningDesc')}</div>
+            <div className="voicevox-warning-actions">
+              <button
+                className="warmup-btn warmup-btn-primary"
+                onClick={() => setVoicevoxDismissed(true)}
+              >
+                OK
+              </button>
+              <button
+                className="warmup-btn warmup-btn-secondary"
+                onClick={() => {
+                  setVoicevoxDismissed(true);
+                  setActiveTab('settings');
+                }}
+              >
+                {t('voicevox.tryVoiceger')}
+              </button>
+            </div>
+            <label className="voicevox-no-notify">
+              <input
+                type="checkbox"
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    localStorage.setItem('voicevox-notify-dismissed', 'true');
+                    setVoicevoxDismissed(true);
+                  }
+                }}
+              />
+              {t('voicevox.dontShowAgain')}
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* === Voiceger未接続通知 === */}
+      {showVoicegerWarning && (
+        <div className="voicevox-warning-overlay">
+          <div className="voicevox-warning-content">
+            <div className="voicevox-warning-icon">🔇</div>
+            <div className="voicevox-warning-title">{t('voiceger.notRunning')}</div>
+            {health?.voiceger?.errorCode && (
+              <div className="warmup-error-code">
+                {t('warmup.errorCode')}: {health.voiceger.errorCode}
+              </div>
+            )}
+            <div className="voicevox-warning-desc">{t('voiceger.notRunningDesc')}</div>
+            <div className="voicevox-warning-actions">
+              <button
+                className="warmup-btn warmup-btn-primary"
+                onClick={() => setVoicegerDismissed(true)}
+              >
+                OK
+              </button>
+              <button
+                className="warmup-btn warmup-btn-secondary"
+                onClick={() => {
+                  setVoicegerDismissed(true);
+                  setActiveTab('settings');
+                }}
+              >
+                {t('voiceger.tryVoicevox')}
+              </button>
+            </div>
+            <label className="voicevox-no-notify">
+              <input
+                type="checkbox"
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    localStorage.setItem('voiceger-notify-dismissed', 'true');
+                    setVoicegerDismissed(true);
+                  }
+                }}
+              />
+              {t('voiceger.dontShowAgain')}
+            </label>
+          </div>
+        </div>
+      )}
+
       {/* === タブナビゲーション === */}
       <div className="tab-nav">
         <button

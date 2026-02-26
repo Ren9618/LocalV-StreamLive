@@ -4,9 +4,16 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import http from 'http';
 import { createBrain, type AiBrainProvider } from './core/brain';
+import { ErrorCodes } from './core/error-codes';
 import { VoiceVoxClient } from './core/voice';
+import { VoicegerClient, detectLanguage } from './core/voiceger';
+import { startVoiceger, stopVoiceger } from './core/voiceger-manager';
 import { SettingsStore } from './core/settings-store';
 import { HealthChecker } from './core/health-checker';
+
+interface TTSClient {
+  generateAudio(text: string, speakerId?: string | number): Promise<Buffer | null>;
+}
 import { CommentFilter } from './core/comment-filter';
 import { ConversationMemory } from './core/conversation-memory';
 import { ViewerMemory } from './core/viewer-memory';
@@ -28,10 +35,13 @@ let brain: AiBrainProvider = createBrain(
   currentSettings.openaiCompatUrl,
   currentSettings.openaiCompatApiKey
 );
-let voice = new VoiceVoxClient(currentSettings.voicevoxUrl, currentSettings.speakerId);
+let voice: TTSClient = currentSettings.ttsEngine === 'voiceger'
+  ? new VoicegerClient(currentSettings.voicegerUrl)
+  : new VoiceVoxClient(currentSettings.voicevoxUrl, currentSettings.speakerId);
 const healthChecker = new HealthChecker(
   currentSettings.ollamaUrl,
   currentSettings.voicevoxUrl,
+  currentSettings.voicegerUrl,
   currentSettings.aiProvider,
   currentSettings.openaiCompatUrl,
   currentSettings.openaiCompatApiKey
@@ -52,6 +62,8 @@ let mainWindow: BrowserWindow | null = null;
 // === ウォームアップ状態 ===
 type WarmupStatus = 'warming-up' | 'ready' | 'failed';
 let warmupStatus: WarmupStatus = 'warming-up';
+let warmupErrorCode: string | undefined;
+let warmupErrorMessage: string | undefined;
 
 // === ログストレージ ===
 interface LogEntry {
@@ -61,7 +73,7 @@ interface LogEntry {
   userComment: string;    // ピュアなコメント本文のみ
   userLogoUrl?: string;   // ← 新規追加 (YouTube等のアイコンURL)
   aiReply: string;
-  source: 'ai' | 'filter' | 'error';
+  source: 'ai' | 'filter' | 'error' | 'debug';
   processingMs: number;
   isSuperChat?: boolean;
 }
@@ -81,6 +93,19 @@ function pushLogEntry(entry: LogEntry) {
   const dataString = JSON.stringify(entry);
   sseClients.forEach(client => {
     client.write(`data: ${dataString}\n\n`);
+  });
+}
+
+function pushDebugLog(message: string) {
+  console.log(message);
+  pushLogEntry({
+    id: ++logIdCounter,
+    timestamp: new Date().toISOString(),
+    username: 'System',
+    userComment: message,
+    aiReply: '',
+    source: 'debug',
+    processingMs: 0,
   });
 }
 
@@ -300,7 +325,12 @@ async function processIncomingComment(text: string, isSuperChat: boolean, userna
     console.log(`  ⚡ [フィルター] ${filterResult.filterType}: ${reply}`);
     const processingMs = Date.now() - startTime;
 
-    const audioBuffer = await voice.generateAudio(reply);
+    let audioBuffer: Buffer | null = null;
+    if (currentSettings.ttsEngine === 'voiceger') {
+      audioBuffer = await voice.generateAudio(reply, currentSettings.voicegerSpeakerId);
+    } else {
+      audioBuffer = await voice.generateAudio(reply);
+    }
     let audioData = null;
     if (audioBuffer) {
       audioData = audioBuffer.toString('base64');
@@ -335,9 +365,26 @@ async function processIncomingComment(text: string, isSuperChat: boolean, userna
     const augmentedSystemPrompt = viewerContext
       ? `${currentSettings.systemPrompt}\n\n${viewerContext}`
       : currentSettings.systemPrompt;
+    // 多言語応答が有効な場合のみ、コメント言語に合わせた返答指示を追加
+    let finalSystemPrompt = augmentedSystemPrompt;
+    let finalAiText = aiText;
+    const isMultiLangEnabled = currentSettings.ttsEngine === 'voiceger'
+      ? currentSettings.voicegerMultiLang
+      : currentSettings.voicevoxMultiLang;
+
+    if (isMultiLangEnabled) {
+      const commentLang = detectLanguage(aiText);
+      if (commentLang !== 'Japanese') {
+        // システムプロンプトに追加（バックアップ指示）
+        finalSystemPrompt = augmentedSystemPrompt + `\n\n===LANGUAGE RULE===\nYou MUST reply ONLY in ${commentLang}. NEVER use Japanese. This is mandatory.`;
+        // ユーザーメッセージにも言語指示を注入（LLMはこちらを最優先で読む）
+        finalAiText = `[Reply in ${commentLang} only] ${aiText}`;
+        console.log(`  🌐 [多言語] ${commentLang}で返答するよう指示`);
+      }
+    }
 
     // 短期記憶を含めたメッセージを構築
-    const messages = conversationMemory.buildMessages(augmentedSystemPrompt, aiText);
+    const messages = conversationMemory.buildMessages(finalSystemPrompt, finalAiText);
     const reply = await brain.chat(messages);
     console.log(`[IPC/YT] Bot Reply: ${reply}`);
     const processingMs = Date.now() - startTime;
@@ -345,7 +392,12 @@ async function processIncomingComment(text: string, isSuperChat: boolean, userna
     // 会話履歴に追加
     conversationMemory.addExchange(aiText, reply);
 
-    const audioBuffer = await voice.generateAudio(reply);
+    let audioBuffer: Buffer | null = null;
+    if (currentSettings.ttsEngine === 'voiceger') {
+      audioBuffer = await voice.generateAudio(reply, currentSettings.voicegerSpeakerId);
+    } else {
+      audioBuffer = await voice.generateAudio(reply);
+    }
     let audioData = null;
     if (audioBuffer) {
       audioData = audioBuffer.toString('base64');
@@ -713,8 +765,8 @@ function createWindow() {
   console.log("Preload script path:", preloadPath);
 
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 1024,
+    height: 768,
     webPreferences: {
       preload: preloadPath,
       nodeIntegration: false,
@@ -732,13 +784,65 @@ function createWindow() {
   }
 }
 
+// ウォームアップロジック
+async function runWarmup() {
+  warmupStatus = 'warming-up';
+  warmupErrorCode = undefined;
+  warmupErrorMessage = undefined;
+  sendWarmupStatus();
+
+  try {
+    // 1. Voicegerを使用する場合は先に起動(await)
+    if (currentSettings.ttsEngine === 'voiceger') {
+      pushDebugLog('[Main] Voicegerサーバーを自動起動中...');
+      const ok = await startVoiceger(currentSettings.voicegerUrl);
+      if (ok) {
+        pushDebugLog('[Main] Voicegerサーバー起動成功');
+      } else {
+        console.warn('[Main] Voicegerサーバー起動失敗（手動で起動してください）');
+        // VRAM不足などでVoicegerが起動失敗した場合は、Ollamaの起動も中断してエラーとする
+        throw new Error('Voicegerの起動に失敗しました。VRAM不足などの原因が考えられます。');
+      }
+    }
+
+    // 2. Ollama等、AIモデルのウォームアップ
+    pushDebugLog(`[Main] AIプロバイダー(${currentSettings.aiProvider})のウォームアップを開始します...`);
+    await brain.warmup();
+
+    warmupStatus = 'ready';
+    pushDebugLog('[Main] AIウォームアップ完了');
+  } catch (error: any) {
+    warmupStatus = 'failed';
+    // エラーがVoicegerに起因する場合は独自のコードをセット
+    if (error?.message && error.message.includes('Voiceger')) {
+      warmupErrorCode = ErrorCodes.VOICEGER_START_FAILED;
+    } else {
+      warmupErrorCode = ErrorCodes.WARMUP_FAILED;
+    }
+    warmupErrorMessage = error?.message || String(error);
+    console.error(`[Main] ウォームアップ失敗 [${warmupErrorCode}]:`, error);
+  }
+
+  // 状態同期ズレ防止: ウォームアップ直後にヘルスチェック状態を強制更新・送信
+  try {
+    const currentHealth = await healthChecker.checkAll();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('health-status', currentHealth);
+    }
+  } catch (err) {
+    console.error('[Main] 強制ヘルスチェック失敗:', err);
+  }
+
+  sendWarmupStatus();
+}
+
 app.whenReady().then(async () => {
   createWindow();
   startOverlayServer();
 
   // ヘルスチェックの定期監視を開始（10秒間隔）
   healthChecker.startMonitoring((status) => {
-    const fullStatus = { ...status, youtube: { connected: isYoutubeConnected } };
+    const fullStatus = { ...status, youtube: { connected: isYoutubeConnected }, ttsEngine: currentSettings.ttsEngine };
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('health-status', fullStatus);
     }
@@ -751,18 +855,8 @@ app.whenReady().then(async () => {
     }
   });
 
-  // AIモデルのウォームアップ（バックグラウンドで実行）
-  warmupStatus = 'warming-up';
-  sendWarmupStatus();
-  try {
-    await brain.warmup();
-    warmupStatus = 'ready';
-    console.log('[Main] AIウォームアップ完了');
-  } catch (error) {
-    warmupStatus = 'failed';
-    console.error('[Main] AIウォームアップ失敗:', error);
-  }
-  sendWarmupStatus();
+  // ウォームアップロジックの実行
+  runWarmup();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -772,7 +866,11 @@ app.whenReady().then(async () => {
 // ウォームアップ状態をレンダラーに送信
 function sendWarmupStatus() {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('ai-warmup-status', warmupStatus);
+    mainWindow.webContents.send('ai-warmup-status', {
+      status: warmupStatus,
+      errorCode: warmupErrorCode,
+      errorMessage: warmupErrorMessage,
+    });
   }
 }
 
@@ -785,28 +883,36 @@ let isQuitting = false;
 app.on('before-quit', async (e) => {
   if (isQuitting) return;
 
-  // Ollamaの場合のみ終了時にメモリ解放（アンロード）
-  if (currentSettings?.aiProvider === 'ollama' && currentSettings?.aiModel) {
+  const needsCleanup = true; // 常にクリーンアップ（Voicegerキル等）を実行する
+
+  if (needsCleanup) {
     e.preventDefault(); // 一旦終了をキャンセル
     isQuitting = true;
 
-    console.log(`[Main] アプリ終了処理: Ollamaモデル「${currentSettings.aiModel}」のメモリ解放を試みます...`);
-    try {
-      const url = new URL('/api/generate', currentSettings.ollamaUrl || 'http://127.0.0.1:11434').href;
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: currentSettings.aiModel,
-          keep_alive: 0
-        })
-      });
-      console.log('[Main] Ollamaモデルのメモリ解放完了');
-    } catch (error) {
-      console.error('[Main] Ollamaモデルのメモリ解放失敗:', error);
+    // Ollamaモデルのメモリ解放
+    if (currentSettings?.aiProvider === 'ollama' && currentSettings?.aiModel) {
+      pushDebugLog(`[Main] アプリ終了処理: Ollamaモデル「${currentSettings.aiModel}」のメモリ解放を試みます...`);
+      try {
+        const url = new URL('/api/generate', currentSettings.ollamaUrl || 'http://127.0.0.1:11434').href;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: currentSettings.aiModel,
+            keep_alive: 0
+          })
+        });
+        pushDebugLog('[Main] Ollamaモデルのメモリ解放完了');
+      } catch (error) {
+        console.error('[Main] Ollamaモデルのメモリ解放失敗:', error);
+      }
     }
 
-    app.quit(); // 解放後に改めて終了
+    // Voicegerサーバーの停止（TTSエンジン設定に関係なく停止を試みる）
+    pushDebugLog('[Main] Voicegerサーバーを停止中...');
+    await stopVoiceger(currentSettings?.voicegerUrl || 'http://127.0.0.1:8000');
+
+    app.quit(); // クリーンアップ後に改めて終了
   }
 });
 
@@ -823,7 +929,30 @@ ipcMain.handle('get-settings', async () => settingsStore.getAll());
 ipcMain.handle('get-default-settings', async () => settingsStore.getDefaults());
 
 ipcMain.handle('save-settings', async (_event, newSettings: any) => {
+  const oldSettings = { ...currentSettings };
   currentSettings = settingsStore.save(newSettings);
+
+  // === Voicegerの停止判定 ===
+  // 以前voicegerを利用していたが、新しい設定では利用しなくなった場合
+  if (oldSettings.ttsEngine === 'voiceger' && currentSettings.ttsEngine !== 'voiceger') {
+    pushDebugLog('[Main] TTSエンジンが切り替わりました。Voicegerを停止します...');
+    await stopVoiceger(oldSettings.voicegerUrl || 'http://127.0.0.1:8000');
+  }
+
+  // === ウォームアップの再実行判定 ===
+  const needsWarmup =
+    oldSettings.aiProvider !== currentSettings.aiProvider ||
+    oldSettings.aiModel !== currentSettings.aiModel ||
+    oldSettings.ollamaUrl !== currentSettings.ollamaUrl ||
+    oldSettings.voicegerUrl !== currentSettings.voicegerUrl ||
+    oldSettings.ttsEngine !== currentSettings.ttsEngine;
+
+  // ウォームアップが必要な設定変更があった場合、自動的にrunWarmupを呼び出す
+  if (needsWarmup) {
+    pushDebugLog('[Main] AI関連の設定が変更されたため、ウォームアップを再実行します...');
+    runWarmup(); // 非同期でバックグラウンド実行
+  }
+
   // プロバイダーに応じたブレインを再生成
   brain = createBrain(
     currentSettings.aiProvider,
@@ -832,10 +961,13 @@ ipcMain.handle('save-settings', async (_event, newSettings: any) => {
     currentSettings.openaiCompatUrl,
     currentSettings.openaiCompatApiKey
   );
-  voice = new VoiceVoxClient(currentSettings.voicevoxUrl, currentSettings.speakerId);
+  voice = currentSettings.ttsEngine === 'voiceger'
+    ? new VoicegerClient(currentSettings.voicegerUrl)
+    : new VoiceVoxClient(currentSettings.voicevoxUrl, currentSettings.speakerId);
   healthChecker.updateUrls(
     currentSettings.ollamaUrl,
     currentSettings.voicevoxUrl,
+    currentSettings.voicegerUrl,
     currentSettings.aiProvider,
     currentSettings.openaiCompatUrl,
     currentSettings.openaiCompatApiKey
@@ -892,13 +1024,22 @@ ipcMain.handle('save-filters', async (_event, filters: any) => {
   return true;
 });
 
-// === IPC: ウォームアップ状態取得 ===
-ipcMain.handle('get-warmup-status', async () => warmupStatus);
+// === IPC: ウォームアップ状態取得と再試行 ===
+ipcMain.handle('get-warmup-status', async () => ({
+  status: warmupStatus,
+  errorCode: warmupErrorCode,
+  errorMessage: warmupErrorMessage,
+}));
+ipcMain.handle('retry-warmup', async () => {
+  if (warmupStatus === 'failed') {
+    runWarmup();
+  }
+});
 
 // === IPC: ヘルスチェック ===
 ipcMain.handle('check-health', async () => {
   const status = await healthChecker.checkAll();
-  return { ...status, youtube: { connected: isYoutubeConnected } };
+  return { ...status, youtube: { connected: isYoutubeConnected }, ttsEngine: currentSettings.ttsEngine };
 });
 
 // === IPC: ログ ===

@@ -108,6 +108,10 @@
     border-left-color: #ff6b6b;
 }
 
+.log-debug {
+    border-left-color: #888888;
+}
+
 /* === メタ情報行 === */
 .log-meta {
     display: flex;
@@ -142,6 +146,24 @@
 .badge-error {
     background: rgba(255, 107, 107, 0.15);
     color: #ff6b6b;
+}
+
+.badge-debug {
+    background: rgba(136, 136, 136, 0.15);
+    color: #aaaaaa;
+}
+
+.log-debug-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.log-debug-toggle input[type="checkbox"] {
+    cursor: pointer;
 }
 
 .log-ms {

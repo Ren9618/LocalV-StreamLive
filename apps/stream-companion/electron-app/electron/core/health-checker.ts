@@ -1,5 +1,6 @@
 import { fetch } from 'undici';
 import type { AiProviderType } from './brain';
+import { ErrorCodes } from './error-codes';
 
 // === ヘルスチェック結果の型定義 ===
 export interface HealthStatus {
@@ -8,16 +9,25 @@ export interface HealthStatus {
         connected: boolean;
         models: string[];
         error?: string;
+        errorCode?: string;
     };
     ollama: {
         connected: boolean;
         models: string[];
         error?: string;
+        errorCode?: string;
     };
     voicevox: {
         connected: boolean;
         speakers: { name: string; id: number }[];
         error?: string;
+        errorCode?: string;
+    };
+    voiceger: {
+        connected: boolean;
+        speakers: { id: string; name: string }[];
+        error?: string;
+        errorCode?: string;
     };
 }
 
@@ -25,6 +35,7 @@ export interface HealthStatus {
 export class HealthChecker {
     private ollamaUrl: string;
     private voicevoxUrl: string;
+    private voicegerUrl: string;
     private aiProvider: AiProviderType;
     private openaiCompatUrl: string;
     private openaiCompatApiKey: string;
@@ -33,12 +44,14 @@ export class HealthChecker {
     constructor(
         ollamaUrl: string,
         voicevoxUrl: string,
+        voicegerUrl: string = 'http://127.0.0.1:8000',
         aiProvider: AiProviderType = 'ollama',
         openaiCompatUrl: string = '',
         openaiCompatApiKey: string = ''
     ) {
         this.ollamaUrl = ollamaUrl;
         this.voicevoxUrl = voicevoxUrl;
+        this.voicegerUrl = voicegerUrl;
         this.aiProvider = aiProvider;
         this.openaiCompatUrl = openaiCompatUrl;
         this.openaiCompatApiKey = openaiCompatApiKey;
@@ -48,12 +61,14 @@ export class HealthChecker {
     updateUrls(
         ollamaUrl: string,
         voicevoxUrl: string,
+        voicegerUrl?: string,
         aiProvider?: AiProviderType,
         openaiCompatUrl?: string,
         openaiCompatApiKey?: string
     ): void {
         this.ollamaUrl = ollamaUrl;
         this.voicevoxUrl = voicevoxUrl;
+        if (voicegerUrl !== undefined) this.voicegerUrl = voicegerUrl;
         if (aiProvider !== undefined) this.aiProvider = aiProvider;
         if (openaiCompatUrl !== undefined) this.openaiCompatUrl = openaiCompatUrl;
         if (openaiCompatApiKey !== undefined) this.openaiCompatApiKey = openaiCompatApiKey;
@@ -67,7 +82,7 @@ export class HealthChecker {
             });
 
             if (!response.ok) {
-                return { connected: false, models: [], error: `HTTP ${response.status}` };
+                return { connected: false, models: [], error: `[${ErrorCodes.OLLAMA_HTTP_ERROR}] HTTP ${response.status}`, errorCode: ErrorCodes.OLLAMA_HTTP_ERROR };
             }
 
             const data = await response.json() as any;
@@ -75,13 +90,13 @@ export class HealthChecker {
 
             return { connected: true, models };
         } catch (error: any) {
-            const message = error?.code === 'ECONNREFUSED'
-                ? 'Ollamaが起動していません。`ollama serve` を実行してください。'
-                : error?.code === 'UND_ERR_CONNECT_TIMEOUT'
-                    ? 'Ollamaに接続できません（タイムアウト）。'
-                    : `接続エラー: ${error?.message || error}`;
-
-            return { connected: false, models: [], error: message };
+            if (error?.code === 'ECONNREFUSED') {
+                return { connected: false, models: [], error: `[${ErrorCodes.OLLAMA_CONNECTION_REFUSED}] Ollamaが起動していません。\`ollama serve\` を実行してください。`, errorCode: ErrorCodes.OLLAMA_CONNECTION_REFUSED };
+            }
+            if (error?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+                return { connected: false, models: [], error: `[${ErrorCodes.OLLAMA_TIMEOUT}] Ollamaに接続できません（タイムアウト）。`, errorCode: ErrorCodes.OLLAMA_TIMEOUT };
+            }
+            return { connected: false, models: [], error: `[${ErrorCodes.UNKNOWN}] 接続エラー: ${error?.message || error}`, errorCode: ErrorCodes.UNKNOWN };
         }
     }
 
@@ -93,7 +108,7 @@ export class HealthChecker {
             });
 
             if (!response.ok) {
-                return { connected: false, speakers: [], error: `HTTP ${response.status}` };
+                return { connected: false, speakers: [], error: `[${ErrorCodes.VOICEVOX_HTTP_ERROR}] HTTP ${response.status}`, errorCode: ErrorCodes.VOICEVOX_HTTP_ERROR };
             }
 
             const data = await response.json() as any;
@@ -110,20 +125,20 @@ export class HealthChecker {
 
             return { connected: true, speakers };
         } catch (error: any) {
-            const message = error?.code === 'ECONNREFUSED'
-                ? 'VoiceVoxが起動していません。VoiceVoxアプリを起動してください。'
-                : error?.code === 'UND_ERR_CONNECT_TIMEOUT'
-                    ? 'VoiceVoxに接続できません（タイムアウト）。'
-                    : `接続エラー: ${error?.message || error}`;
-
-            return { connected: false, speakers: [], error: message };
+            if (error?.code === 'ECONNREFUSED') {
+                return { connected: false, speakers: [], error: `[${ErrorCodes.VOICEVOX_CONNECTION_REFUSED}] VoiceVoxが起動していません。VoiceVoxアプリを起動してください。`, errorCode: ErrorCodes.VOICEVOX_CONNECTION_REFUSED };
+            }
+            if (error?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+                return { connected: false, speakers: [], error: `[${ErrorCodes.VOICEVOX_TIMEOUT}] VoiceVoxに接続できません（タイムアウト）。`, errorCode: ErrorCodes.VOICEVOX_TIMEOUT };
+            }
+            return { connected: false, speakers: [], error: `[${ErrorCodes.UNKNOWN}] 接続エラー: ${error?.message || error}`, errorCode: ErrorCodes.UNKNOWN };
         }
     }
 
     // OpenAI互換 APIの接続チェック
     async checkOpenAiCompat(): Promise<HealthStatus['llm']> {
         if (!this.openaiCompatUrl) {
-            return { provider: 'openai-compat', connected: false, models: [], error: 'API URLが設定されていません。' };
+            return { provider: 'openai-compat', connected: false, models: [], error: `[${ErrorCodes.OPENAI_URL_NOT_SET}] API URLが設定されていません。`, errorCode: ErrorCodes.OPENAI_URL_NOT_SET };
         }
         try {
             const base = this.openaiCompatUrl.replace(/\/+$/, '');
@@ -139,17 +154,17 @@ export class HealthChecker {
             });
 
             if (!response.ok) {
-                return { provider: 'openai-compat', connected: false, models: [], error: `HTTP ${response.status}` };
+                return { provider: 'openai-compat', connected: false, models: [], error: `[${ErrorCodes.OPENAI_HTTP_ERROR}] HTTP ${response.status}`, errorCode: ErrorCodes.OPENAI_HTTP_ERROR };
             }
 
             const data = await response.json() as any;
             const models = (data.data || []).map((m: any) => m.id as string);
             return { provider: 'openai-compat', connected: true, models };
         } catch (error: any) {
-            const message = error?.code === 'ECONNREFUSED'
-                ? 'APIサーバーに接続できません。URLを確認してください。'
-                : `接続エラー: ${error?.message || error}`;
-            return { provider: 'openai-compat', connected: false, models: [], error: message };
+            if (error?.code === 'ECONNREFUSED') {
+                return { provider: 'openai-compat', connected: false, models: [], error: `[${ErrorCodes.OPENAI_CONNECTION_REFUSED}] APIサーバーに接続できません。URLを確認してください。`, errorCode: ErrorCodes.OPENAI_CONNECTION_REFUSED };
+            }
+            return { provider: 'openai-compat', connected: false, models: [], error: `[${ErrorCodes.UNKNOWN}] 接続エラー: ${error?.message || error}`, errorCode: ErrorCodes.UNKNOWN };
         }
     }
 
@@ -163,14 +178,44 @@ export class HealthChecker {
         return { provider: 'ollama', ...ollamaResult };
     }
 
+    // Voicegerの接続チェック
+    async checkVoiceger(): Promise<HealthStatus['voiceger']> {
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${this.voicegerUrl}/speakers`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                return { connected: false, speakers: [], error: `[LV-2004] Voiceger HTTP ${response.status}`, errorCode: 'LV-2004' };
+            }
+
+            const data = await response.json() as any;
+            const speakers = Array.isArray(data.speakers) ? data.speakers : [];
+
+            return { connected: true, speakers: speakers };
+        } catch (error: any) {
+            if (error?.code === 'ECONNREFUSED' || error?.cause?.code === 'ECONNREFUSED') {
+                return { connected: false, speakers: [], error: `[LV-2005] Voicegerが起動していません。`, errorCode: 'LV-2005' };
+            }
+            if (error?.name === 'AbortError' || error?.code === 'UND_ERR_CONNECT_TIMEOUT') {
+                return { connected: false, speakers: [], error: `[LV-2006] Voicegerに接続できません（タイムアウト）。`, errorCode: 'LV-2006' };
+            }
+            return { connected: false, speakers: [], error: `[LV-2000] 接続エラー: ${error?.message || error}`, errorCode: 'LV-2000' };
+        }
+    }
+
     // 全サービスのヘルスチェック
     async checkAll(): Promise<HealthStatus> {
-        const [llm, ollama, voicevox] = await Promise.all([
+        const [llm, ollama, voicevox, voiceger] = await Promise.all([
             this.checkLlm(),
             this.checkOllama(),
             this.checkVoiceVox(),
+            this.checkVoiceger(),
         ]);
-        return { llm, ollama, voicevox };
+        return { llm, ollama, voicevox, voiceger };
     }
 
     // 定期監視を開始。コールバックで結果を通知
