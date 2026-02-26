@@ -125,6 +125,12 @@ const en: Record<string, string> = {
   'guide.voicegerStep1Desc': 'Follow the instructions to set up the Python environment and API server',
   'guide.voicegerStep2': 'Start Voiceger',
   'guide.voicegerStep2Desc': 'Start the API server or configure auto-start with included scripts (Default port: 8000)',
+  'guide.voicegerInstall': '📥 Install Voiceger',
+  'guide.voicegerReinstall': '🔄 Reinstall Voiceger',
+  'guide.voicegerInstallTitle': 'Install Voiceger',
+  'guide.voicegerInstallConfirm': 'Start automatic installation (script execution) for Voiceger?\n* A terminal will open to proceed with setup.',
+  'guide.voicegerReinstallConfirm': 'Voiceger seems to be already installed. Do you want to reinstall?\n* The existing folder will be deleted.',
+  'guide.manualSetup': 'Manual Setup',
 
   // === Settings: Sidebar ===
   'settings.aiModel': 'AI Model',

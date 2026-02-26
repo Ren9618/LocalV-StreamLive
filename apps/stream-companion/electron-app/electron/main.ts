@@ -7,7 +7,7 @@ import { createBrain, type AiBrainProvider } from './core/brain';
 import { ErrorCodes } from './core/error-codes';
 import { VoiceVoxClient } from './core/voice';
 import { VoicegerClient, detectLanguage } from './core/voiceger';
-import { startVoiceger, stopVoiceger } from './core/voiceger-manager';
+import { startVoiceger, stopVoiceger, isVoicegerInstalled, installVoiceger } from './core/voiceger-manager';
 import { SettingsStore } from './core/settings-store';
 import { HealthChecker } from './core/health-checker';
 
@@ -933,6 +933,9 @@ ipcMain.handle('send-comment', async (_event, text: string, isSuperChat: boolean
 // === IPC: 設定 ===
 ipcMain.handle('get-settings', async () => settingsStore.getAll());
 ipcMain.handle('get-default-settings', async () => settingsStore.getDefaults());
+
+ipcMain.handle('check-voiceger-installed', () => isVoicegerInstalled());
+ipcMain.handle('install-voiceger', () => installVoiceger());
 
 ipcMain.handle('save-settings', async (_event, newSettings: any) => {
   const oldSettings = { ...currentSettings };

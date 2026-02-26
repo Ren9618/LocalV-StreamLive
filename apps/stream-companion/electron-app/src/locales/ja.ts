@@ -125,6 +125,12 @@ const ja: Record<string, string> = {
   'guide.voicegerStep1Desc': 'の手順に従いPython環境やAPIサーバーを構築します',
   'guide.voicegerStep2': 'Voicegerを起動',
   'guide.voicegerStep2Desc': 'APIサーバーを起動するか、本アプリ付属のスクリプトで自動起動を設定します（デフォルトポート: 8000）',
+  'guide.voicegerInstall': '📥 Voicegerをインストール',
+  'guide.voicegerReinstall': '🔄 Voicegerを再インストール',
+  'guide.voicegerInstallTitle': 'Voicegerのインストール',
+  'guide.voicegerInstallConfirm': 'Voicegerの自動インストール（スクリプト実行）を開始しますか？\n※ターミナルが開き、セットアップが進行します。',
+  'guide.voicegerReinstallConfirm': 'Voicegerは既にインストールされているようです。再インストールしますか？\n※既存のフォルダは削除されます。',
+  'guide.manualSetup': 'マニュアルセットアップ',
 
   // === 設定: サイドバー ===
   'settings.aiModel': 'AIモデル設定',

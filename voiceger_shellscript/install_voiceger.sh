@@ -4,10 +4,19 @@ set -e
 echo "Starting Voiceger Installation..."
 cd /home/ray_9618/デスクトップ/LocalAI
 
-if [ ! -d "voiceger_v2" ]; then
-    echo "Cloning voiceger_v2..."
-    git clone https://github.com/zunzun999/voiceger_v2.git
+if [ -d "voiceger_v2" ]; then
+    echo "Voiceger is already installed in $(pwd)/voiceger_v2"
+    read -p "Do you want to reinstall? (y/N): " choice
+    if [[ ! "$choice" =~ ^[Yy]$ ]]; then
+        echo "Installation cancelled."
+        exit 0
+    fi
+    echo "Removing existing installation..."
+    rm -rf voiceger_v2
 fi
+
+echo "Cloning voiceger_v2..."
+git clone https://github.com/zunzun999/voiceger_v2.git
 
 cd voiceger_v2
 

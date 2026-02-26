@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './StatusBar.css';
 import { useLocale } from './i18n';
 
@@ -36,6 +36,33 @@ interface StatusBarProps {
 function StatusBar({ health }: StatusBarProps) {
     const { t } = useLocale();
     const [showGuide, setShowGuide] = useState(false);
+    const [voicegerInstalled, setVoicegerInstalled] = useState(false);
+
+    useEffect(() => {
+        if (showGuide) {
+            checkVoicegerPath();
+        }
+    }, [showGuide]);
+
+    const checkVoicegerPath = async () => {
+        const installed = await (window as any).electron.invoke('check-voiceger-installed');
+        setVoicegerInstalled(installed);
+    };
+
+    const handleInstallVoiceger = async () => {
+        const confirmMsg = voicegerInstalled
+            ? t('guide.voicegerReinstallConfirm')
+            : t('guide.voicegerInstallConfirm');
+
+        if (window.confirm(confirmMsg)) {
+            const result = await (window as any).electron.invoke('install-voiceger');
+            if (result.success) {
+                // インストール中も再チェックなどの必要はない（別窓で動くため）
+            } else {
+                alert(`Error: ${result.message}`);
+            }
+        }
+    };
 
     if (!health) {
         return (
@@ -179,11 +206,19 @@ function StatusBar({ health }: StatusBarProps) {
                                     <span className="step-num">1</span>
                                     <div>
                                         <strong>{t('guide.voicegerStep1')}</strong>
-                                        <p>
-                                            <a href="https://github.com/Ren9618/Voiceger" target="_blank" rel="noreferrer">
-                                                Voiceger GitHub
+                                        <div style={{ marginTop: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <button
+                                                className="guide-install-btn"
+                                                onClick={handleInstallVoiceger}
+                                            >
+                                                {voicegerInstalled ? t('guide.voicegerReinstall') : t('guide.voicegerInstall')}
+                                            </button>
+                                            <a href="https://github.com/Ren9618/Voiceger" target="_blank" rel="noreferrer" style={{ fontSize: '0.9em' }}>
+                                                {t('guide.manualSetup')} (GitHub)
                                             </a>
-                                            {' '}{t('guide.voicegerStep1Desc')}
+                                        </div>
+                                        <p style={{ marginTop: '8px', fontSize: '0.9em', opacity: 0.8 }}>
+                                            {t('guide.voicegerStep1Desc')}
                                         </p>
                                     </div>
                                 </div>

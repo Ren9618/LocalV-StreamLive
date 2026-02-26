@@ -156,3 +156,60 @@ export async function stopVoiceger(baseUrl: string = 'http://127.0.0.1:8000'): P
 
     console.log('[VoicegerManager] Voiceger停止完了');
 }
+
+/**
+ * Voicegerがインストールされているか（ディレクトリが存在するか）確認
+ */
+export function isVoicegerInstalled(): boolean {
+    const parentDir = path.resolve(getScriptDir(), '..', '..');
+    const installDir = path.join(parentDir, 'voiceger_v2');
+    return fs.existsSync(installDir);
+}
+
+/**
+ * Voicegerインストールスクリプトを実行
+ */
+export function installVoiceger(): { success: boolean; message?: string } {
+    const scriptDir = getScriptDir();
+    const isWindows = process.platform === 'win32';
+    const scriptName = isWindows ? 'install_voiceger.bat' : 'install_voiceger.sh';
+    const scriptPath = path.join(scriptDir, scriptName);
+
+    if (!fs.existsSync(scriptPath)) {
+        return { success: false, message: `インストーラーが見つかりません: ${scriptPath}` };
+    }
+
+    try {
+        if (isWindows) {
+            spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', scriptPath], {
+                detached: true,
+                stdio: 'ignore',
+            });
+        } else {
+            // Linux: ターミナルを起動してスクリプトを実行（GUI環境を想定）
+            // gnome-terminal, xterm, konsole 等を試行
+            const terminalCmds = [
+                { cmd: 'gnome-terminal', args: ['--', 'bash', '-c', `${scriptPath}; exec bash`] },
+                { cmd: 'xterm', args: ['-hold', '-e', scriptPath] },
+                { cmd: 'konsole', args: ['--hold', '-e', scriptPath] }
+            ];
+
+            let started = false;
+            for (const t of terminalCmds) {
+                try {
+                    spawn(t.cmd, t.args, { detached: true, stdio: 'ignore' });
+                    started = true;
+                    break;
+                } catch { continue; }
+            }
+
+            if (!started) {
+                // ターミナルが見つからない場合は直接実行（ただし対話ができない可能性あり）
+                spawn('bash', [scriptPath], { detached: true, stdio: 'inherit' });
+            }
+        }
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+}

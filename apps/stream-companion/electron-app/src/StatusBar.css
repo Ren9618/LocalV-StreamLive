@@ -1,3 +1,31 @@
+.overlay-copy-btn:hover {
+    background: rgba(138, 43, 226, 0.3);
+}
+
+/* === インストールボタン === */
+.guide-install-btn {
+    padding: 6px 16px;
+    background: #00ff88;
+    border: none;
+    border-radius: 6px;
+    color: #111;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+}
+
+.guide-install-btn:hover {
+    background: #00cc6e;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 255, 136, 0.3);
+}
+
+.guide-install-btn:active {
+    transform: translateY(0);
+}
+
 .status-bar {
     display: flex;
     align-items: center;
