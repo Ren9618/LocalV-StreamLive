@@ -24,8 +24,8 @@ REM ============================================================================
 
 echo Starting Voiceger Installation for Windows...
 
-:: 設置場所の決定（LocalAIフォルダ内）
-set "TARGET_DIR=%~dp0..\..\"
+:: 設置場所の決定（LocalV-StreamLiveディレクトリ内）
+set "TARGET_DIR=%~dp0..\"
 cd /d "%TARGET_DIR%"
 
 :: 依存ツールの確認
@@ -42,6 +42,15 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
+
+:: Git LFSの確認（モデルダウンロードに必須）
+where git-lfs >nul 2>0
+if %errorlevel% neq 0 (
+    echo Error: Git LFS (Large File Storage) is not installed. Please install git-lfs first.
+    pause
+    exit /b 1
+)
+git lfs install
 
 :: 再インストール確認
 if exist "voiceger_v2" (
@@ -75,29 +84,72 @@ if %errorlevel% neq 0 (
 
 call venv\Scripts\activate.bat
 
-echo Installing requirements...
+echo Downgrading setuptools to ^<70 for compatibility with older packages...
 pip install "setuptools<70.0.0" wheel
+
+echo Installing requirements...
 pip install -r requirements.txt
-pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu121
 
-:: モデルダウンロード (簡易化のためwgetの代わりにcurlを使用)
-echo Downloading GPT-SoVITS pretrained models...
-mkdir GPT-SoVITS\GPT_SoVITS\pretrained_models 2>nul
-cd GPT-SoVITS\GPT_SoVITS\pretrained_models
-
-:: 本来は多数のファイルがあるが、最小限の疎通確認レプリカまたは指示を出す
-:: ここでは install_voiceger.sh と同様の git clone 方式を推奨（Git LFSが必要）
-where git-lfs >nul 2>0
-if %errorlevel% eq 0 (
-    git lfs install
-    git clone https://huggingface.co/lj1995/GPT-SoVITS temp_pretrained
-    move temp_pretrained\* .
-    rmdir /s /q temp_pretrained
+:: GPU環境の自動判別と適切な PyTorch のインストール
+where nvidia-smi >nul 2>0
+if %errorlevel% equ 0 (
+    echo NVIDIA GPU detected. Installing PyTorch with CUDA 12.1 support...
+    pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --extra-index-url https://download.pytorch.org/whl/cu121
 ) else (
-    echo Warning: Git LFS not found. Pretrained models might not download correctly via git clone.
+    echo No NVIDIA GPU detected. Installing PyTorch CPU version...
+    pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --extra-index-url https://download.pytorch.org/whl/cpu
 )
 
-:: 他のモデルも同様に処理... (長くなるため省略、主要な部分は sh と同期させる)
+echo Downloading GPT-SoVITS pretrained models...
+cd GPT-SoVITS\GPT_SoVITS
+if not exist "pretrained_models" mkdir pretrained_models
+cd pretrained_models
+
+if not exist "chinese-hubert-base" (
+    git clone https://huggingface.co/lj1995/GPT-SoVITS temp_pretrained
+    xcopy /E /Y temp_pretrained\* .
+    rmdir /s /q temp_pretrained
+)
+
+echo Downloading G2PW models (from HuggingFace mirror)...
+cd ..\text
+if not exist "G2PWModel" (
+    curl.exe -L -o G2PWModel_1.1.zip https://huggingface.co/L-jasmine/GPT_Sovits/resolve/main/G2PWModel_1.1.zip
+    powershell -command "Expand-Archive -Path 'G2PWModel_1.1.zip' -DestinationPath '.' -Force"
+    ren G2PWModel_1.1 G2PWModel
+    del G2PWModel_1.1.zip
+)
+
+echo Downloading Zundamon Fine-Tuned Models...
+cd ..\..\
+if not exist "GPT_weights_v2" (
+    git clone https://huggingface.co/zunzunpj/zundamon_GPT-SoVITS temp_zundamon
+    xcopy /E /Y temp_zundamon\GPT_weights_v2 .\GPT_weights_v2\
+    xcopy /E /Y temp_zundamon\SoVITS_weights_v2 .\SoVITS_weights_v2\
+    rmdir /s /q temp_zundamon
+)
+
+echo Downloading RVC Models ^& Assets...
+cd Retrieval-based-Voice-Conversion-WebUI\assets
+if not exist "weights" mkdir weights
+if not exist "indices" mkdir indices
+if not exist "rmvpe" mkdir rmvpe
+if not exist "hubert" mkdir hubert
+
+if not exist "rmvpe\rmvpe.pt" (
+    curl.exe -L -o rmvpe\rmvpe.pt https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt
+)
+if not exist "hubert\hubert_base.pt" (
+    curl.exe -L -o hubert\hubert_base.pt https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt
+)
+
+if not exist "weights\train-0814-2.pth" (
+    curl.exe -L -o weights\train-0814-2.pth https://huggingface.co/zunzunpj/zundamon_RVC/resolve/main/zumdaon_rvc_indices_weights/train-0814-2.pth
+)
+
+if not exist "indices\train-0814-2_IVF256_Flat_nprobe_1_train-0814-2_v2.index" (
+    curl.exe -L -o indices\train-0814-2_IVF256_Flat_nprobe_1_train-0814-2_v2.index https://huggingface.co/zunzunpj/zundamon_RVC/resolve/main/zumdaon_rvc_indices_weights/train-0814-2_IVF256_Flat_nprobe_1_train-0814-2_v2.index
+)
 
 echo Installation complete!
 pause
