@@ -138,34 +138,64 @@ function StatusBar({ health }: StatusBarProps) {
                             </div>
                         </div>
 
-                        {!health?.voicevox.connected && (
-                            <div className="guide-section">
-                                <h4>{t('guide.voicevoxTitle')}</h4>
-                                <p className="guide-error">{health?.voicevox.error}</p>
+                        {/* VoiceVox セットアップ */}
+                        <div className="guide-section">
+                            <h4>{t('guide.voicevoxTitle')}</h4>
+                            {!health?.voicevox.connected && health?.voicevox.error && (
+                                <p className="guide-error">{health.voicevox.error}</p>
+                            )}
+                            <p className="guide-note" style={{ color: '#ffcc66' }}>{t('guide.voicevoxNote')}</p>
 
-                                <div className="guide-steps">
-                                    <div className="guide-step">
-                                        <span className="step-num">1</span>
-                                        <div>
-                                            <strong>{t('guide.voicevoxStep1')}</strong>
-                                            <p>
-                                                <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noreferrer">
-                                                    https://voicevox.hiroshiba.jp/
-                                                </a>
-                                                {' '}{t('guide.voicevoxStep1Desc')}
-                                            </p>
-                                        </div>
+                            <div className="guide-steps">
+                                <div className="guide-step">
+                                    <span className="step-num">1</span>
+                                    <div>
+                                        <strong>{t('guide.voicevoxStep1')}</strong>
+                                        <p>
+                                            <a href="https://voicevox.hiroshiba.jp/" target="_blank" rel="noreferrer">
+                                                https://voicevox.hiroshiba.jp/
+                                            </a>
+                                            {' '}{t('guide.voicevoxStep1Desc')}
+                                        </p>
                                     </div>
-                                    <div className="guide-step">
-                                        <span className="step-num">2</span>
-                                        <div>
-                                            <strong>{t('guide.voicevoxStep2')}</strong>
-                                            <p>{t('guide.voicevoxStep2Desc')}</p>
-                                        </div>
+                                </div>
+                                <div className="guide-step">
+                                    <span className="step-num">2</span>
+                                    <div>
+                                        <strong>{t('guide.voicevoxStep2')}</strong>
+                                        <p>{t('guide.voicevoxStep2Desc')}</p>
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Voiceger セットアップ */}
+                        <div className="guide-section">
+                            <h4>{t('guide.voicegerTitle')}</h4>
+                            <p className="guide-note" style={{ color: '#66b2ff' }}>{t('guide.voicegerNote')}</p>
+
+                            <div className="guide-steps">
+                                <div className="guide-step">
+                                    <span className="step-num">1</span>
+                                    <div>
+                                        <strong>{t('guide.voicegerStep1')}</strong>
+                                        <p>
+                                            <a href="https://github.com/Ren9618/Voiceger" target="_blank" rel="noreferrer">
+                                                Voiceger GitHub
+                                            </a>
+                                            {' '}{t('guide.voicegerStep1Desc')}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="guide-step">
+                                    <span className="step-num">2</span>
+                                    <div>
+                                        <strong>{t('guide.voicegerStep2')}</strong>
+                                        <p>{t('guide.voicegerStep2Desc')}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
