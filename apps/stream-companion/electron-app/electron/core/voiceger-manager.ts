@@ -159,10 +159,16 @@ export async function stopVoiceger(baseUrl: string = 'http://127.0.0.1:8000'): P
 
 /**
  * Voicegerがインストールされているか（ディレクトリが存在するか）確認
+ * install_voiceger.sh が /home/.../デスクトップ/LocalAI/ にクローンするため、
+ * プロジェクトルート(LocalV-StreamLive)の親ディレクトリ(LocalAI)内を確認する
  */
 export function isVoicegerInstalled(): boolean {
-    const parentDir = path.resolve(getScriptDir(), '..', '..');
-    const installDir = path.join(parentDir, 'voiceger_v2');
+    // getScriptDir() = .../LocalV-StreamLive/voiceger_shellscript
+    // -> 1つ上 = LocalV-StreamLive, さらに1つ上 = LocalAI
+    const projectRoot = path.resolve(getScriptDir(), '..');
+    const localAiDir = path.resolve(projectRoot, '..');
+    const installDir = path.join(localAiDir, 'voiceger_v2');
+    console.log(`[VoicegerManager] Checking install at: ${installDir}`);
     return fs.existsSync(installDir);
 }
 

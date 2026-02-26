@@ -158,6 +158,19 @@ try {
       ipcRenderer.on('play-audio', handler);
       return () => { ipcRenderer.removeListener('play-audio', handler); };
     },
+
+    // === Voiceger インストール管理 ===
+    checkVoicegerInstalled: () => {
+      return ipcRenderer.invoke('check-voiceger-installed');
+    },
+    installVoiceger: () => {
+      return ipcRenderer.invoke('install-voiceger');
+    },
+
+    // 汎用 invoke（フォールバック用）
+    invoke: (channel: string, ...args: any[]) => {
+      return ipcRenderer.invoke(channel, ...args);
+    },
   });
   console.log('✅ contextBridge exposed');
 } catch (error) {
