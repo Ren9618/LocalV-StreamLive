@@ -1,6 +1,27 @@
 #!/bin/bash
 set -e
 
+# =============================================================================
+# Voiceger インストールスクリプト (Linux/macOS)
+#
+# このスクリプトは Voiceger (https://github.com/zunzun999/voiceger_v2) の
+# セットアップを自動化するものです。Voiceger のソースコードやモデルを
+# 同梱・再配布するものではなく、公式リポジトリからのクローンおよび
+# 必要な依存関係のインストールを行います。
+#
+# --- サードパーティ ライセンス情報 ---
+# Voiceger は以下のオープンソースソフトウェアを含みます:
+#   - GPT-SoVITS (MIT License) : https://github.com/RVC-Boss/GPT-SoVITS
+#   - GPT-SoVITS Pretrained Models (MIT License)
+#   - G2PW Model (Apache 2.0 License) : https://github.com/GitYCC/g2pW
+#   - RVC WebUI (MIT License) : https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
+#   - RMVPE (MIT License)
+#   - Faster Whisper Large V3 (MIT License)
+#
+# ずんだもん音声モデルの利用規約:
+#   https://zunko.jp/con_ongen_kiyaku.html
+# =============================================================================
+
 echo "Starting Voiceger Installation..."
 cd /home/ray_9618/デスクトップ/LocalAI
 

@@ -2,6 +2,8 @@
 
 # Voiceger 起動スクリプト
 # このスクリプトは Voiceger API サーバーを起動します。
+# Voiceger: https://github.com/zunzun999/voiceger_v2
+# ずんだもん音声モデル利用規約: https://zunko.jp/con_ongen_kiyaku.html
 
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="/home/ray_9618/デスクトップ/LocalAI/voiceger_v2"

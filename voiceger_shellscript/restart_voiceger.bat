@@ -1,6 +1,8 @@
 @echo off
 REM Voiceger 再起動スクリプト (Windows)
 REM 実行中の Voiceger API サーバーを停止し、新しく起動し直します。
+REM Voiceger: https://github.com/zunzun999/voiceger_v2
+REM ずんだもん音声モデル利用規約: https://zunko.jp/con_ongen_kiyaku.html
 
 set PORT=8000
 

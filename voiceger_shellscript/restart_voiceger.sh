@@ -2,6 +2,8 @@
 
 # Voiceger 再起動スクリプト
 # 実行中の Voiceger API サーバーを停止し、新しく起動し直します。
+# Voiceger: https://github.com/zunzun999/voiceger_v2
+# ずんだもん音声モデル利用規約: https://zunko.jp/con_ongen_kiyaku.html
 
 PORT=8000
 START_SCRIPT="/home/ray_9618/デスクトップ/LocalAI/start_voiceger.sh"

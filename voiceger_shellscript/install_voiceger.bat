@@ -1,6 +1,27 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM =============================================================================
+REM Voiceger インストールスクリプト (Windows)
+REM
+REM このスクリプトは Voiceger (https://github.com/zunzun999/voiceger_v2) の
+REM セットアップを自動化するものです。Voiceger のソースコードやモデルを
+REM 同梱・再配布するものではなく、公式リポジトリからのクローンおよび
+REM 必要な依存関係のインストールを行います。
+REM
+REM --- サードパーティ ライセンス情報 ---
+REM Voiceger は以下のオープンソースソフトウェアを含みます:
+REM   - GPT-SoVITS (MIT License) : https://github.com/RVC-Boss/GPT-SoVITS
+REM   - GPT-SoVITS Pretrained Models (MIT License)
+REM   - G2PW Model (Apache 2.0 License) : https://github.com/GitYCC/g2pW
+REM   - RVC WebUI (MIT License) : https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI
+REM   - RMVPE (MIT License)
+REM   - Faster Whisper Large V3 (MIT License)
+REM
+REM ずんだもん音声モデルの利用規約:
+REM   https://zunko.jp/con_ongen_kiyaku.html
+REM =============================================================================
+
 echo Starting Voiceger Installation for Windows...
 
 :: 設置場所の決定（LocalAIフォルダ内）

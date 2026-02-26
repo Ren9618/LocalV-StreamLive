@@ -1,6 +1,8 @@
 @echo off
 REM Voiceger 起動スクリプト (Windows)
 REM Voiceger API サーバーを起動します。
+REM Voiceger: https://github.com/zunzun999/voiceger_v2
+REM ずんだもん音声モデル利用規約: https://zunko.jp/con_ongen_kiyaku.html
 
 echo ------------------------------------------
 echo 🚀 Voiceger API サーバーを起動しています...

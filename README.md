@@ -73,5 +73,16 @@ npm run dev
 *   本アプリケーションの音声合成には **VOICEVOX** を使用しています。
 *   配信等でご利用の際は、必ず「**VOICEVOX:（キャラクター名）**」等のクレジット表記を行ってください。詳細は [VOICEVOX 利用規約](https://voicevox.hiroshiba.jp/term/) をご確認ください。
 
+**Voiceger サードパーティ ライセンス情報:**
+*   本アプリケーションは [Voiceger](https://github.com/zunzun999/voiceger_v2) と連携する機能を含みます。Voiceger 自体のソースコードやモデルを同梱・再配布するものではありません。
+*   Voiceger は以下のオープンソースソフトウェアを含みます:
+    *   [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) (MIT License)
+    *   GPT-SoVITS Pretrained Models (MIT License)
+    *   [G2PW Model](https://github.com/GitYCC/g2pW) (Apache 2.0 License)
+    *   [RVC WebUI](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI) (MIT License)
+    *   RMVPE (MIT License)
+    *   Faster Whisper Large V3 (MIT License)
+*   ずんだもん音声モデルの利用規約: [https://zunko.jp/con_ongen_kiyaku.html](https://zunko.jp/con_ongen_kiyaku.html)
+
 **免責事項:**  
-本ソフトウェアは生成AIを使用しています。AIの出力結果に対する責任は負いかねます。また、VOICEVOX等の外部ツールを利用する際は、各ソフトウェアの利用規約を必ず遵守してください。
+本ソフトウェアは生成AIを使用しています。AIの出力結果に対する責任は負いかねます。また、VOICEVOX・Voiceger等の外部ツールを利用する際は、各ソフトウェアの利用規約を必ず遵守してください。
