@@ -37,10 +37,11 @@ Currently, it features **"Stream Companion"**, an AI mascot that humorously and 
 
 ## 🚀 Getting Started
 
-### 1. Prerequisites
-1.  **Ollama**: Install from the [official website](https://ollama.ai/) and run a model via terminal, e.g., `ollama run llama3.1`.
-2.  **VOICEVOX**: Install from the [official website](https://voicevox.hiroshiba.jp/), launch the application, and keep the editor window open (it listens on port `50021`).
-3.  **Virtual Audio (Optional)**: If you want to separate audio in OBS, [VB-Cable](https://vb-audio.com/Cable/) is recommended.
+### 1. Prerequisites (Required)
+1.  **Ollama (LLM)**: Install from the [official website](https://ollama.ai/) and run a model via terminal beforehand, e.g., `ollama run llama3.1`.
+2.  **VoiceVox (TTS - Option 1)**: Install from the [official website](https://voicevox.hiroshiba.jp/), launch the application, and keep the editor window open (it listens on port `50021` by default).
+3.  **Voiceger (TTS - Option 2)**: Voiceger is an alternative lightweight and fast option. Follow its setup guide to build the Python environment and start the API server, or use the included scripts for auto-start (it listens on port `8000` by default).
+4.  **Virtual Audio (Optional)**: If you want to route and separate audio in OBS, installing [VB-Cable](https://vb-audio.com/Cable/) or similar software is recommended.
 
 ### 2. Setup
 ```bash
