@@ -55,7 +55,8 @@ function StatusBar({ health }: StatusBarProps) {
             : t('guide.voicegerInstallConfirm');
 
         if (window.confirm(confirmMsg)) {
-            const result = await (window as any).electron.invoke('install-voiceger');
+            const action = voicegerInstalled ? 'clean' : 'resume';
+            const result = await (window as any).electron.invoke('install-voiceger', action);
             if (result.success) {
                 // インストール中も再チェックなどの必要はない（別窓で動くため）
             } else {

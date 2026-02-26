@@ -58,7 +58,7 @@ const conversationMemory = new ConversationMemory(currentSettings.memorySize);
 // 視聴者記憶（SQLite）
 const viewerMemory = new ViewerMemory();
 
-let mainWindow: BrowserWindow | null = null;
+let mainWindow: InstanceType<typeof BrowserWindow> | null = null;
 
 // === ウォームアップ状態 ===
 type WarmupStatus = 'warming-up' | 'ready' | 'failed';
@@ -938,7 +938,18 @@ ipcMain.handle('get-settings', async () => settingsStore.getAll());
 ipcMain.handle('get-default-settings', async () => settingsStore.getDefaults());
 
 ipcMain.handle('check-voiceger-installed', () => isVoicegerInstalled());
-ipcMain.handle('install-voiceger', () => installVoiceger());
+ipcMain.handle('install-voiceger', (_event, action: 'clean' | 'resume' | 'uninstall') => installVoiceger(action));
+ipcMain.handle('restart-voiceger', async () => {
+  pushDebugLog('[Main] 手動操作によりVoicegerサーバーを再起動します...');
+  await stopVoiceger(currentSettings?.voicegerUrl || 'http://127.0.0.1:8000');
+  const ok = await startVoiceger(currentSettings?.voicegerUrl || 'http://127.0.0.1:8000');
+  if (ok) {
+    pushDebugLog('[Main] Voicegerサーバー再起動成功');
+  } else {
+    console.warn('[Main] Voicegerサーバー再起動失敗');
+  }
+  return ok;
+});
 
 ipcMain.handle('save-settings', async (_event, newSettings: any) => {
   const oldSettings = { ...currentSettings };

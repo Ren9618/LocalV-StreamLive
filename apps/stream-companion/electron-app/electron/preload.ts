@@ -168,8 +168,8 @@ try {
     checkVoicegerInstalled: () => {
       return ipcRenderer.invoke('check-voiceger-installed');
     },
-    installVoiceger: () => {
-      return ipcRenderer.invoke('install-voiceger');
+    installVoiceger: (action?: 'clean' | 'resume' | 'uninstall') => {
+      return ipcRenderer.invoke('install-voiceger', action || 'resume');
     },
 
     // 汎用 invoke（フォールバック用）

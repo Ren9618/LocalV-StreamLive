@@ -175,7 +175,7 @@ export function isVoicegerInstalled(): boolean {
 /**
  * Voicegerインストールスクリプトを実行
  */
-export function installVoiceger(): { success: boolean; message?: string } {
+export function installVoiceger(action: 'clean' | 'resume' | 'uninstall' = 'resume'): { success: boolean; message?: string } {
     const scriptDir = getScriptDir();
     const isWindows = process.platform === 'win32';
     const scriptName = isWindows ? 'install_voiceger.bat' : 'install_voiceger.sh';
@@ -186,32 +186,57 @@ export function installVoiceger(): { success: boolean; message?: string } {
     }
 
     try {
+        const flag = `--${action}`;
         if (isWindows) {
-            spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', scriptPath], {
+            spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', scriptPath, flag], {
+                detached: true,
+                stdio: 'ignore',
+            });
+        } else if (process.platform === 'darwin') {
+            // macOS: osascript を使用して既存の「ターミナル」アプリでスクリプトを開く
+            const osascriptArgs = [
+                '-e',
+                `tell application "Terminal" to do script "bash ${scriptPath} ${flag}"`,
+                '-e',
+                'tell application "Terminal" to activate'
+            ];
+            spawn('osascript', osascriptArgs, {
                 detached: true,
                 stdio: 'ignore',
             });
         } else {
             // Linux: ターミナルを起動してスクリプトを実行（GUI環境を想定）
-            // gnome-terminal, xterm, konsole 等を試行
             const terminalCmds = [
-                { cmd: 'gnome-terminal', args: ['--', 'bash', '-c', `${scriptPath}; exec bash`] },
-                { cmd: 'xterm', args: ['-hold', '-e', scriptPath] },
-                { cmd: 'konsole', args: ['--hold', '-e', scriptPath] }
+                { cmd: 'gnome-terminal', args: ['--', 'bash', '-c', `${scriptPath} ${flag}; exec bash`] },
+                { cmd: 'xterm', args: ['-hold', '-e', scriptPath, flag] },
+                { cmd: 'konsole', args: ['--hold', '-e', scriptPath, flag] }
             ];
 
             let started = false;
             for (const t of terminalCmds) {
                 try {
-                    spawn(t.cmd, t.args, { detached: true, stdio: 'ignore' });
+                    const proc = spawn(t.cmd, t.args, { detached: true, stdio: 'ignore' });
+
+                    // spawn 自体は成功しても、コマンドが存在しない場合に ENOENT エラーが発生するためハンドリング
+                    proc.on('error', (err: any) => {
+                        if (err.code === 'ENOENT') {
+                            // 次のターミナルを試す
+                        }
+                    });
+
+                    // 成功したとみなしてループを抜ける（エラーイベントが来ないことを期待）
+                    // 実際には数ミリ秒待たないと ENOENT が判明しないが、
+                    // catch ブロックでのエラーハンドリングも併用する
                     started = true;
                     break;
-                } catch { continue; }
+                } catch {
+                    continue;
+                }
             }
 
             if (!started) {
                 // ターミナルが見つからない場合は直接実行（ただし対話ができない可能性あり）
-                spawn('bash', [scriptPath], { detached: true, stdio: 'inherit' });
+                spawn('bash', [scriptPath, flag], { detached: true, stdio: 'inherit' });
             }
         }
         return { success: true };

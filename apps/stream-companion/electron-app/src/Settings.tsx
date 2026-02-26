@@ -904,6 +904,42 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                                         </label>
                                         <span className="field-hint">{t('settings.audio.multiLangHint')}</span>
                                     </div>
+
+                                    <div className="settings-field">
+                                        <label>Voiceger 管理</label>
+                                        <div className="settings-actions-buttons" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                            <button
+                                                className="btn-save"
+                                                style={{ padding: '8px 12px', fontSize: '0.9rem', backgroundColor: '#4CAF50', flex: 1 }}
+                                                onClick={async () => {
+                                                    if (!window.confirm("Voicegerサーバーを再起動しますか？")) return;
+                                                    await window.electron.restartVoiceger();
+                                                }}
+                                            >
+                                                🔄 再起動
+                                            </button>
+                                            <button
+                                                className="btn-save"
+                                                style={{ padding: '8px 12px', fontSize: '0.9rem', backgroundColor: '#2196F3', flex: 1 }}
+                                                onClick={async () => {
+                                                    if (!window.confirm("Voicegerのファイル群の整合性をチェックし、不足分をダウンロードしますか？(※ターミナルが開きます)")) return;
+                                                    await window.electron.installVoiceger('resume');
+                                                }}
+                                            >
+                                                整合性チェック (不足分DL)
+                                            </button>
+                                            <button
+                                                className="btn-reset"
+                                                style={{ padding: '8px 12px', fontSize: '0.9rem', backgroundColor: '#F44336', color: 'white', flex: 1 }}
+                                                onClick={async () => {
+                                                    if (!window.confirm("本当にVoicegerをアンインストールしますか？\n(voiceger_v2フォルダ全体が完全に削除されます)")) return;
+                                                    await window.electron.installVoiceger('uninstall');
+                                                }}
+                                            >
+                                                アンインストール
+                                            </button>
+                                        </div>
+                                    </div>
                                 </>
                             )}
 

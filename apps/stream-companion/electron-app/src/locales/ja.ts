@@ -128,10 +128,10 @@ const ja: Record<string, string> = {
   'guide.voicegerStep2': 'Voicegerを起動',
   'guide.voicegerStep2Desc': 'APIサーバーを起動するか、本アプリ付属のスクリプトで自動起動を設定します（デフォルトポート: 8000）',
   'guide.voicegerInstall': '📥 Voicegerをインストール',
-  'guide.voicegerReinstall': '🔄 Voicegerを再インストール',
+  'guide.voicegerReinstall': '🔄 Voicegerをクリーン再インストール',
   'guide.voicegerInstallTitle': 'Voicegerのインストール',
   'guide.voicegerInstallConfirm': 'Voicegerの自動インストール（スクリプト実行）を開始しますか？\n※ターミナルが開き、セットアップが進行します。',
-  'guide.voicegerReinstallConfirm': 'Voicegerは既にインストールされているようです。再インストールしますか？\n※既存のフォルダは削除されます。',
+  'guide.voicegerReinstallConfirm': 'Voicegerは既にインストールされています。クリーン再インストールしますか？\n※既存のvoiceger_v2フォルダ全体が完全に削除され、最初からダウンロードし直します。',
   'guide.manualSetup': 'マニュアルセットアップ',
 
   // === 設定: サイドバー ===

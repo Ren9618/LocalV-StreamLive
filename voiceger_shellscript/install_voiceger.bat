@@ -43,6 +43,30 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: 引数の解析
+set "ACTION=default"
+:parse_args
+if "%~1"=="" goto after_args
+if /i "%~1"=="--clean" set "ACTION=clean"
+if /i "%~1"=="--resume" set "ACTION=resume"
+if /i "%~1"=="-y" set "ACTION=resume"
+if /i "%~1"=="--yes" set "ACTION=resume"
+if /i "%~1"=="--uninstall" set "ACTION=uninstall"
+shift
+goto parse_args
+:after_args
+
+if "%ACTION%"=="uninstall" (
+    echo Uninstalling Voiceger...
+    if exist "voiceger_v2" (
+        rmdir /s /q "voiceger_v2"
+        echo Voiceger uninstalled successfully.
+    ) else (
+        echo Voiceger is not installed.
+    )
+    exit /b 0
+)
+
 :: Git LFSの確認（モデルダウンロードに必須）
 where git-lfs >nul 2>0
 if %errorlevel% neq 0 (
@@ -55,21 +79,36 @@ git lfs install
 :: 再インストール確認
 if exist "voiceger_v2" (
     echo Voiceger is already installed in %cd%\voiceger_v2
-    set /p REINSTALL="Do you want to reinstall? (y/N): "
-    if /i "!REINSTALL!" neq "y" (
-        echo Installation cancelled.
-        exit /b 0
+    if "%ACTION%"=="clean" (
+        echo Clean installation requested. Removing existing directory...
+        rmdir /s /q "voiceger_v2"
+    ) else if "%ACTION%"=="resume" (
+        echo Resume installation requested. Existing directory will be updated/resumed.
+        cd voiceger_v2
+        git pull
+        cd ..
+    ) else (
+        set /p REINSTALL="Do you want to clean reinstall (c) or resume (r)? (c/R): "
+        if /i "!REINSTALL!"=="c" (
+            echo Removing existing installation...
+            rmdir /s /q "voiceger_v2"
+        ) else (
+            echo Resuming installation in existing directory...
+            cd voiceger_v2
+            git pull
+            cd ..
+        )
     )
-    echo Removing existing installation...
-    rmdir /s /q "voiceger_v2"
 )
 
-echo Cloning voiceger_v2...
-git clone https://github.com/zunzun999/voiceger_v2.git
-if %errorlevel% neq 0 (
-    echo Error: Failed to clone repository.
-    pause
-    exit /b 1
+if not exist "voiceger_v2" (
+    echo Cloning voiceger_v2...
+    git clone https://github.com/zunzun999/voiceger_v2.git
+    if %errorlevel% neq 0 (
+        echo Error: Failed to clone repository.
+        pause
+        exit /b 1
+    )
 )
 
 cd voiceger_v2

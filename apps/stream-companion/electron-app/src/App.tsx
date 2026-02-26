@@ -35,6 +35,10 @@ declare global {
       loadPreset: (name: string) => Promise<string | null>;
       exportPrompt: (text: string, defaultName: string) => Promise<boolean>;
       importPrompt: () => Promise<{ name: string, text: string } | null>;
+      // === Voiceger インストール管理 ===
+      checkVoicegerInstalled: () => Promise<boolean>;
+      installVoiceger: (action?: 'clean' | 'resume' | 'uninstall') => Promise<{ success: boolean; message?: string }>;
+      restartVoiceger: () => Promise<boolean>;
       // オーバーレイ設定
       getOverlaySettings: () => Promise<any>;
       saveOverlaySettings: (settings: any) => Promise<boolean>;
