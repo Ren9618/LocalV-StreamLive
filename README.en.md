@@ -35,6 +35,22 @@ Currently, it features **"Stream Companion"**, an AI mascot that humorously and 
 *   **Local AI Engine:** [Ollama](https://ollama.ai/)
 *   **Local Voice Engine:** [VOICEVOX](https://voicevox.hiroshiba.jp/)
 
+## 💻 Tested Environments
+
+| Item | Environment 1 (Linux) | Environment 2 (Windows) |
+|---|---|---|
+| **OS** | Ubuntu 24.04 LTS (x86_64) | Windows 11 |
+| **CPU** | AMD Ryzen 7 5800X (16 threads) | — |
+| **GPU** | NVIDIA GeForce RTX 2080 (8GB VRAM) | NVIDIA GPU (8GB+ VRAM recommended) |
+| **RAM** | 48GB | 16GB+ recommended |
+| **Node.js** | v25.x | v20.x or higher |
+| **Python** | 3.10–3.14 (for Voiceger) | 3.10 (for Voiceger) |
+
+> [!NOTE]
+> - **GPU (NVIDIA)**: A CUDA-capable NVIDIA GPU with 8GB+ VRAM is strongly recommended when using Voiceger. VoiceVox alone can run on CPU.
+> - **Node.js / npm**: v20 or higher is recommended.
+> - **Python 3.10**: Required for Voiceger setup (not needed if using VoiceVox only).
+
 ## 🚀 Getting Started
 
 ### 1. Prerequisites (Required)
