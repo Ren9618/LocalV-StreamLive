@@ -144,6 +144,8 @@ const zhCN: Record<string, string> = {
   'settings.overlay.import': '📥 导入',
   'settings.overlay.export': '📤 导出',
   'settings.audio.title': '🔊 音频设置',
+  'settings.audio.voicevoxDesc': '※ VoiceVox 是日语专用的语音引擎（不适合朗读其他语言）。',
+  'settings.audio.voicegerDesc': '※ Voiceger 是支持多语言的语音引擎（在非日语直播中强烈推荐）。',
   'settings.audio.voicevoxUrl': 'VoiceVox URL',
   'settings.audio.speaker': '说话人 (VoiceVox)',
   'settings.audio.voicevoxNotConnected': '⚠ VoiceVox 未连接',

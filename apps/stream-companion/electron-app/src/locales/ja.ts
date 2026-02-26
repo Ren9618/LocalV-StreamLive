@@ -169,6 +169,8 @@ const ja: Record<string, string> = {
 
   // === 設定: 音声 ===
   'settings.audio.title': '🔊 音声設定',
+  'settings.audio.voicevoxDesc': '※ VoiceVoxは日本語専用の音声合成です（他言語の読み上げには不向きです）',
+  'settings.audio.voicegerDesc': '※ Voicegerは多言語対応の音声合成エンジンです（日本語外の配信で推奨）',
   'settings.audio.voicevoxUrl': 'VoiceVox URL',
   'settings.audio.speaker': 'スピーカー (VoiceVox)',
   'settings.audio.voicevoxNotConnected': '⚠ VoiceVox未接続',

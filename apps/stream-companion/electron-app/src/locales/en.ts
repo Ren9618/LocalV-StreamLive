@@ -169,6 +169,8 @@ const en: Record<string, string> = {
 
   // === Settings: Audio ===
   'settings.audio.title': '🔊 Audio Settings',
+  'settings.audio.voicevoxDesc': '* VoiceVox is a Japanese-only TTS engine (Original voices are Japanese, not suited for other languages).',
+  'settings.audio.voicegerDesc': '* Voiceger is a multi-language supported TTS engine (Recommended for non-Japanese streams).',
   'settings.audio.voicevoxUrl': 'VoiceVox URL',
   'settings.audio.speaker': 'Speaker (VoiceVox)',
   'settings.audio.voicevoxNotConnected': '⚠ VoiceVox Not Connected',

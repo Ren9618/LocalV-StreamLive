@@ -779,6 +779,9 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                                     <option value="voicevox">VoiceVox (ずんだもん等)</option>
                                     <option value="voiceger">Voiceger (GPT-SoVITS + RVC)</option>
                                 </select>
+                                <div className="field-hint" style={{ marginTop: '8px', lineHeight: '1.4' }}>
+                                    {settings.ttsEngine === 'voicevox' ? t('settings.audio.voicevoxDesc') : t('settings.audio.voicegerDesc')}
+                                </div>
                             </div>
 
                             {settings.ttsEngine === 'voicevox' && (

@@ -144,6 +144,8 @@ const zhTW: Record<string, string> = {
   'settings.overlay.import': '📥 匯入',
   'settings.overlay.export': '📤 匯出',
   'settings.audio.title': '🔊 音訊設定',
+  'settings.audio.voicevoxDesc': '※ VoiceVox 是日語專用的語音引擎（不適合朗讀其他語言）。',
+  'settings.audio.voicegerDesc': '※ Voiceger 是支援多語言的語音引擎（在非日語直播中強烈推薦）。',
   'settings.audio.voicevoxUrl': 'VoiceVox URL',
   'settings.audio.speaker': '說話人 (VoiceVox)',
   'settings.audio.voicevoxNotConnected': '⚠ VoiceVox 未連接',

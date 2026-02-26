@@ -144,6 +144,8 @@ const ko: Record<string, string> = {
   'settings.overlay.import': '📥 가져오기',
   'settings.overlay.export': '📤 내보내기',
   'settings.audio.title': '🔊 오디오 설정',
+  'settings.audio.voicevoxDesc': '※ VoiceVox는 일본어 전용 음성 합성 엔진입니다 (타 언어 발음에 부적합).',
+  'settings.audio.voicegerDesc': '※ Voiceger는 다국어를 지원하는 음성 엔진입니다 (일본어 외 방송 시 권장).',
   'settings.audio.voicevoxUrl': 'VoiceVox URL',
   'settings.audio.speaker': '스피커 (VoiceVox)',
   'settings.audio.voicevoxNotConnected': '⚠ VoiceVox 미연결',

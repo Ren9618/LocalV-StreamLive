@@ -10,7 +10,7 @@ interface LogEntry {
     userComment: string;
     userLogoUrl?: string;
     aiReply: string;
-    source: 'ai' | 'filter' | 'error';
+    source: 'ai' | 'filter' | 'error' | 'debug';
     processingMs: number;
     isSuperChat?: boolean;
 }
@@ -101,13 +101,15 @@ function Dashboard({ health }: DashboardProps) {
         const aiCount = logs.filter(l => l.source === 'ai').length;
         const filterCount = logs.filter(l => l.source === 'filter').length;
         const errorCount = logs.filter(l => l.source === 'error').length;
-        const total = logs.length;
+        // デバッグログを除いたものを全体の件数とする
+        const validLogs = logs.filter(l => l.source !== 'debug');
+        const total = validLogs.length;
         const aiLogs = logs.filter(l => l.source === 'ai' && l.processingMs > 0);
         const avgMs = aiLogs.length > 0 ? Math.round(aiLogs.reduce((sum, l) => sum + l.processingMs, 0) / aiLogs.length) : 0;
         return { total, aiCount, filterCount, errorCount, avgMs };
     }, [logs]);
 
-    const latestLogs = [...logs].slice(-10).reverse();
+    const latestLogs = [...logs].filter(l => l.source !== 'debug').slice(-10).reverse();
 
     return (
         <div className="dashboard-container">
