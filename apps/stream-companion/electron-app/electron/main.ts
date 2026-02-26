@@ -874,6 +874,28 @@ function sendWarmupStatus() {
   }
 }
 
+// === ヘルパー: Ollamaモデルのメモリ解放 ===
+async function unloadOllamaModel(settingsToUse?: any) {
+  const settings = settingsToUse || currentSettings;
+  if (settings?.aiProvider === 'ollama' && settings?.aiModel) {
+    pushDebugLog(`[Main] Ollamaモデル「${settings.aiModel}」のメモリ解放を試みます...`);
+    try {
+      const url = new URL('/api/generate', settings.ollamaUrl || 'http://127.0.0.1:11434').href;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: settings.aiModel,
+          keep_alive: 0
+        })
+      });
+      pushDebugLog('[Main] Ollamaモデルのメモリ解放完了');
+    } catch (error) {
+      console.error('[Main] Ollamaモデルのメモリ解放失敗:', error);
+    }
+  }
+}
+
 app.on('window-all-closed', () => {
   healthChecker.stopMonitoring();
   if (process.platform !== 'darwin') app.quit();
@@ -890,23 +912,7 @@ app.on('before-quit', async (e) => {
     isQuitting = true;
 
     // Ollamaモデルのメモリ解放
-    if (currentSettings?.aiProvider === 'ollama' && currentSettings?.aiModel) {
-      pushDebugLog(`[Main] アプリ終了処理: Ollamaモデル「${currentSettings.aiModel}」のメモリ解放を試みます...`);
-      try {
-        const url = new URL('/api/generate', currentSettings.ollamaUrl || 'http://127.0.0.1:11434').href;
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: currentSettings.aiModel,
-            keep_alive: 0
-          })
-        });
-        pushDebugLog('[Main] Ollamaモデルのメモリ解放完了');
-      } catch (error) {
-        console.error('[Main] Ollamaモデルのメモリ解放失敗:', error);
-      }
-    }
+    await unloadOllamaModel();
 
     // Voicegerサーバーの停止（TTSエンジン設定に関係なく停止を試みる）
     pushDebugLog('[Main] Voicegerサーバーを停止中...');
@@ -937,6 +943,12 @@ ipcMain.handle('save-settings', async (_event, newSettings: any) => {
   if (oldSettings.ttsEngine === 'voiceger' && currentSettings.ttsEngine !== 'voiceger') {
     pushDebugLog('[Main] TTSエンジンが切り替わりました。Voicegerを停止します...');
     await stopVoiceger(oldSettings.voicegerUrl || 'http://127.0.0.1:8000');
+  }
+
+  // === Ollamaメモリ解放判定 (VoiceVox等 -> Voiceger 切り替え時) ===
+  if (oldSettings.ttsEngine !== 'voiceger' && currentSettings.ttsEngine === 'voiceger') {
+    pushDebugLog('[Main] Voicegerへの切り替えを検知しました。VRAM確保のためOllamaモデルを一度メモリから降ろします...');
+    await unloadOllamaModel(oldSettings);
   }
 
   // === ウォームアップの再実行判定 ===
