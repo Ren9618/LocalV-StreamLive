@@ -142,6 +142,7 @@ const ja: Record<string, string> = {
   'settings.audio': '音声設定',
   'settings.queue': 'キュー・メモリ',
   'settings.language': '言語',
+  'settings.about': 'ℹ️ このアプリについて',
   'settings.loading': '設定を読み込み中...',
   'settings.save': '💾 設定を保存',
   'settings.saving': '保存中...',
@@ -209,6 +210,14 @@ const ja: Record<string, string> = {
   'settings.lang.title': '🌐 言語 / Language',
   'settings.lang.select': '表示言語を選択',
   'settings.lang.auto': 'システム言語に合わせる',
+
+  // === 設定: このアプリについて ===
+  'settings.about.title': 'ℹ️ このアプリについて',
+  'settings.about.version': 'バージョン',
+  'settings.about.author': '開発者',
+  'settings.about.license': 'ライセンス',
+  'settings.about.repository': 'GitHub リポジトリ',
+  'settings.about.copyright': '© 2024-2026 LocalV-StreamLive Contributors. All rights reserved.',
 
   // === フィルター ===
   'filter.loading': 'フィルター設定を読み込み中...',

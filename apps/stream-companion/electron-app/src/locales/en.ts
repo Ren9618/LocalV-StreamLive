@@ -142,6 +142,7 @@ const en: Record<string, string> = {
   'settings.audio': 'Audio',
   'settings.queue': 'Queue & Memory',
   'settings.language': 'Language',
+  'settings.about': 'ℹ️ About',
   'settings.loading': 'Loading settings...',
   'settings.save': '💾 Save Settings',
   'settings.saving': 'Saving...',
@@ -209,6 +210,14 @@ const en: Record<string, string> = {
   'settings.lang.title': '🌐 Language',
   'settings.lang.select': 'Select display language',
   'settings.lang.auto': 'Match system language',
+
+  // === Settings: About ===
+  'settings.about.title': 'ℹ️ About',
+  'settings.about.version': 'Version',
+  'settings.about.author': 'Author',
+  'settings.about.license': 'License',
+  'settings.about.repository': 'GitHub Repository',
+  'settings.about.copyright': '© 2024-2026 LocalV-StreamLive Contributors. All rights reserved.',
 
   // === Filters ===
   'filter.loading': 'Loading filter settings...',

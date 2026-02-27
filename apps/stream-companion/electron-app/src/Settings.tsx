@@ -72,7 +72,7 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
     const [overlaySettings, setOverlaySettings] = useState<any>(null);
 
     // サイドバーカテゴリ管理
-    type SettingsCategory = 'ai' | 'prompt' | 'external' | 'overlay' | 'audio' | 'queue' | 'language';
+    type SettingsCategory = 'ai' | 'prompt' | 'external' | 'overlay' | 'audio' | 'queue' | 'language' | 'about';
     const [activeCategory, setActiveCategory] = useState<SettingsCategory>('ai');
 
     // オーバーレイプリセット管理用ステート
@@ -89,6 +89,7 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
         { id: 'audio', icon: '🔊', label: t('settings.audio') },
         { id: 'queue', icon: '📥', label: t('settings.queue') },
         { id: 'language', icon: '🌐', label: t('settings.language') },
+        { id: 'about', icon: 'ℹ️', label: t('settings.about') },
     ];
 
     // 初回読み込み
@@ -1006,6 +1007,48 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                                         <option key={code} value={code}>{name}</option>
                                     ))}
                                 </select>
+                            </div>
+                        </section>
+                    )}
+
+                    {/* === このアプリについて === */}
+                    {activeCategory === 'about' && (
+                        <section className="settings-section">
+                            <h2>{t('settings.about.title')}</h2>
+                            <div className="settings-field" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <div style={{ fontSize: '48px' }}>🚀</div>
+                                    <div>
+                                        <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Stream Companion</h3>
+                                        <p style={{ margin: '4px 0 0 0', color: '#aaa', fontSize: '0.9rem' }}>LocalV-StreamLive Project</p>
+                                    </div>
+                                </div>
+
+                                <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0' }} />
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', fontSize: '0.95rem' }}>
+                                    <span style={{ color: '#aaa' }}>{t('settings.about.version')}:</span>
+                                    <span>0.1.0-alpha</span>
+
+                                    <span style={{ color: '#aaa' }}>{t('settings.about.author')}:</span>
+                                    <span>Ren9618</span>
+
+                                    <span style={{ color: '#aaa' }}>{t('settings.about.license')}:</span>
+                                    <span>MIT License</span>
+
+                                    <span style={{ color: '#aaa' }}>{t('settings.about.repository')}:</span>
+                                    <a href="#" onClick={(e) => {
+                                        e.preventDefault();
+                                        window.open('https://github.com/Ren9618/LocalV-StreamLive', '_blank');
+                                    }} style={{ color: '#4CAF50', textDecoration: 'none' }}>
+                                        https://github.com/Ren9618/LocalV-StreamLive
+                                    </a>
+                                </div>
+
+                                <div style={{ marginTop: '16px', fontSize: '0.85rem', color: '#888', textAlign: 'center' }}>
+                                    {t('settings.about.copyright')}
+                                </div>
                             </div>
                         </section>
                     )}
