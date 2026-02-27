@@ -127,7 +127,7 @@ const zhTW: Record<string, string> = {
   'settings.audio': '音訊設定',
   'settings.queue': '佇列與記憶',
   'settings.language': '語言',
-  'settings.about': 'ℹ️ 關於',
+  'settings.about': '關於',
   'settings.loading': '正在載入設定...',
   'settings.save': '💾 儲存設定',
   'settings.saving': '儲存中...',

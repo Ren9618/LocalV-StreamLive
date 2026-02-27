@@ -142,7 +142,7 @@ const en: Record<string, string> = {
   'settings.audio': 'Audio',
   'settings.queue': 'Queue & Memory',
   'settings.language': 'Language',
-  'settings.about': 'ℹ️ About',
+  'settings.about': 'About',
   'settings.loading': 'Loading settings...',
   'settings.save': '💾 Save Settings',
   'settings.saving': 'Saving...',

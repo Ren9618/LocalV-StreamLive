@@ -127,7 +127,7 @@ const ko: Record<string, string> = {
   'settings.audio': '오디오 설정',
   'settings.queue': '큐 & 메모리',
   'settings.language': '언어',
-  'settings.about': 'ℹ️ 정보',
+  'settings.about': '정보',
   'settings.loading': '설정 로딩 중...',
   'settings.save': '💾 설정 저장',
   'settings.saving': '저장 중...',

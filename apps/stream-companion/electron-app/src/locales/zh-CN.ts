@@ -127,7 +127,7 @@ const zhCN: Record<string, string> = {
   'settings.audio': '音频设置',
   'settings.queue': '队列与记忆',
   'settings.language': '语言',
-  'settings.about': 'ℹ️ 关于',
+  'settings.about': '关于',
   'settings.loading': '正在加载设置...',
   'settings.save': '💾 保存设置',
   'settings.saving': '保存中...',

@@ -142,7 +142,7 @@ const ja: Record<string, string> = {
   'settings.audio': '音声設定',
   'settings.queue': 'キュー・メモリ',
   'settings.language': '言語',
-  'settings.about': 'ℹ️ このアプリについて',
+  'settings.about': 'このアプリについて',
   'settings.loading': '設定を読み込み中...',
   'settings.save': '💾 設定を保存',
   'settings.saving': '保存中...',

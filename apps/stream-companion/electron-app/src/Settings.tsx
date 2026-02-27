@@ -1020,7 +1020,7 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                     <div style={{ fontSize: '48px' }}>🚀</div>
                                     <div>
-                                        <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Stream Companion</h3>
+                                        <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Local-V Stream Companion</h3>
                                         <p style={{ margin: '4px 0 0 0', color: '#aaa', fontSize: '0.9rem' }}>LocalV-Suite Project</p>
                                     </div>
                                 </div>
@@ -1047,7 +1047,7 @@ function Settings({ health, onUnsavedChanges }: SettingsProps) {
                                 </div>
 
                                 <div style={{ marginTop: '16px', fontSize: '0.85rem', color: '#888', textAlign: 'center' }}>
-                                    {t('settings.about.copyright')}
+                                    {t('settings.about.copyright').replace('2024-2026', '2026')}
                                 </div>
                             </div>
                         </section>
