@@ -6,6 +6,9 @@ on:
       - 'v*' # v0.1.0 などのタグがプッシュされたときにリリースビルドを実行
   workflow_dispatch: # GitHubの画面からいつでも手動で実行できるようにする
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
